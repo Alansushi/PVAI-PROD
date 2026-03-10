@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans, DM_Mono, Playfair_Display } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const dmSans = DM_Sans({
@@ -37,7 +38,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`dark ${dmSans.variable} ${dmMono.variable} ${playfair.variable}`}>
-      <body className="font-sans antialiased bg-[#0C1F35] text-[#F8FAFB]">{children}</body>
+      <body className="font-sans antialiased bg-[#0C1F35] text-[#F8FAFB]">
+        {children}
+        <Analytics />
+      </body>
     </html>
   )
 }
