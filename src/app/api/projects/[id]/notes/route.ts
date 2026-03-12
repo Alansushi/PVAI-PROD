@@ -13,13 +13,14 @@ const db = prisma as any
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
   const row = await db.projectNote.findUnique({
-    where: { projectId_userId: { projectId: params.id, userId: session.user.id } },
+    where: { projectId_userId: { projectId: id, userId: session.user.id } },
   })
 
   let notes: NoteTab[] = [{ id: 'default', title: 'General', content: '' }]
@@ -38,18 +39,19 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
   const { notes } = await req.json() as { notes: NoteTab[] }
   const content = JSON.stringify(notes)
 
   await db.projectNote.upsert({
-    where: { projectId_userId: { projectId: params.id, userId: session.user.id } },
+    where: { projectId_userId: { projectId: id, userId: session.user.id } },
     update: { content },
-    create: { projectId: params.id, userId: session.user.id, content },
+    create: { projectId: id, userId: session.user.id, content },
   })
 
   return NextResponse.json({ ok: true })

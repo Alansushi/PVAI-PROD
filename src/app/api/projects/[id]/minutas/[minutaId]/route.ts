@@ -7,10 +7,11 @@ const db = prisma as any
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string; minutaId: string } }
+  { params }: { params: Promise<{ id: string; minutaId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, minutaId } = await params
 
   const memberships = await prisma.orgMember.findMany({ where: { userId: session.user.id } })
   if (!memberships.length) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -18,20 +19,20 @@ export async function GET(
   const orgIds = memberships.map(m => m.organizationId)
   const guestOrgIds = memberships.filter(m => m.role === 'guest').map(m => m.organizationId)
   const project = await prisma.project.findFirst({
-    where: { id: params.id, organizationId: { in: orgIds } },
+    where: { id, organizationId: { in: orgIds } },
   })
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (guestOrgIds.includes(project.organizationId)) {
-    const isMember = await prisma.projectMember.findFirst({ where: { projectId: params.id, userId: session.user.id } })
+    const isMember = await prisma.projectMember.findFirst({ where: { projectId: id, userId: session.user.id } })
     if (!isMember) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   const minuta = await db.processedMinuta.findUnique({
-    where: { id: params.minutaId },
+    where: { id: minutaId },
     include: { user: { select: { name: true } } },
   })
 
-  if (!minuta || minuta.projectId !== params.id) {
+  if (!minuta || minuta.projectId !== id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

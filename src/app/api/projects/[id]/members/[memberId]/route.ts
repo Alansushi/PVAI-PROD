@@ -21,12 +21,13 @@ async function verifyProjectAccess(projectId: string, userId: string) {
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, memberId } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
@@ -37,12 +38,12 @@ export async function PUT(
   }
 
   const existing = await prisma.projectMember.findFirst({
-    where: { id: params.memberId, projectId: params.id },
+    where: { id: memberId, projectId: id },
   })
   if (!existing) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
   const updated = await prisma.projectMember.update({
-    where: { id: params.memberId },
+    where: { id: memberId },
     data: {
       name,
       initials: initials ?? existing.initials,
@@ -55,9 +56,9 @@ export async function PUT(
     userId: session.user.id,
     action: 'update',
     entity: 'member',
-    entityId: params.memberId,
+    entityId: memberId,
     entityName: name,
-    projectId: params.id,
+    projectId: id,
     oldValue: { name: existing.name, role: existing.role, color: existing.color },
     newValue: { name, role, color },
   })
@@ -67,28 +68,29 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, memberId } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const existing = await prisma.projectMember.findFirst({
-    where: { id: params.memberId, projectId: params.id },
+    where: { id: memberId, projectId: id },
   })
   if (!existing) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
-  await prisma.projectMember.delete({ where: { id: params.memberId } })
+  await prisma.projectMember.delete({ where: { id: memberId } })
 
   await createAuditLog({
     userId: session.user.id,
     action: 'delete',
     entity: 'member',
-    entityId: params.memberId,
+    entityId: memberId,
     entityName: existing.name,
-    projectId: params.id,
+    projectId: id,
     oldValue: { name: existing.name, role: existing.role },
   })
 

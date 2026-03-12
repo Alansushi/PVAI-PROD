@@ -21,15 +21,16 @@ async function verifyProjectAccess(projectId: string, userId: string) {
   return project
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const packages = await db.deliverablePackage.findMany({
-    where: { projectId: params.id },
+    where: { projectId: id },
     include: {
       milestones: { orderBy: { date: 'asc' } },
       deliverables: { select: { id: true, name: true, status: true, dueDate: true } },
@@ -40,11 +41,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(packages)
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const pkg = await db.$transaction(async (tx: any) => {
     const created = await tx.deliverablePackage.create({
       data: {
-        projectId: params.id,
+        projectId: id,
         name,
         description: description ?? null,
       },
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await tx.milestone.createMany({
         data: milestones.map((m: { type: string; date: string; label?: string }) => ({
           packageId: created.id,
-          projectId: params.id,
+          projectId: id,
           type: m.type,
           date: new Date(m.date),
           label: m.label ?? null,
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (deliverableIds.length > 0) {
       await tx.deliverable.updateMany({
-        where: { id: { in: deliverableIds }, projectId: params.id },
+        where: { id: { in: deliverableIds }, projectId: id },
         data: { packageId: created.id },
       })
     }

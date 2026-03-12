@@ -34,12 +34,13 @@ async function verifyDeliverableAccess(deliverableId: string, projectId: string,
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string; deliverableId: string } }
+  { params }: { params: Promise<{ id: string; deliverableId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, deliverableId } = await params
 
-  const result = await verifyDeliverableAccess(params.deliverableId, params.id, session.user.id)
+  const result = await verifyDeliverableAccess(deliverableId, id, session.user.id)
   if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { deliverable: existing, projectTitle } = result
@@ -53,7 +54,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
 
   const updated = await db.deliverable.update({
-    where: { id: params.deliverableId },
+    where: { id: deliverableId },
     data: {
       name: body.name ?? undefined,
       status: body.status ?? undefined,
@@ -76,7 +77,7 @@ export async function PUT(
     entity: 'deliverable',
     entityId: updated.id,
     entityName: updated.name,
-    projectId: params.id,
+    projectId: id,
     deliverableId: updated.id,
     oldValue: { name: existing.name, status: existing.status, priority: existing.priority },
     newValue: { name: updated.name, status: updated.status, priority: updated.priority },
@@ -99,7 +100,7 @@ export async function PUT(
         title: 'Te asignaron una tarea',
         body: `"${updated.name}" en ${projectTitle}`,
         type: 'task_assigned',
-        projectId: params.id,
+        projectId: id,
         entityId: updated.id,
       },
     })
@@ -110,25 +111,26 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; deliverableId: string } }
+  { params }: { params: Promise<{ id: string; deliverableId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, deliverableId } = await params
 
-  const deleteResult = await verifyDeliverableAccess(params.deliverableId, params.id, session.user.id)
+  const deleteResult = await verifyDeliverableAccess(deliverableId, id, session.user.id)
   if (!deleteResult) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { deliverable: existingDel } = deleteResult
 
-  await prisma.deliverable.delete({ where: { id: params.deliverableId } })
+  await prisma.deliverable.delete({ where: { id: deliverableId } })
 
   await createAuditLog({
     userId: session.user.id,
     action: 'delete',
     entity: 'deliverable',
-    entityId: params.deliverableId,
+    entityId: deliverableId,
     entityName: existingDel.name,
-    projectId: params.id,
+    projectId: id,
     oldValue: { name: existingDel.name },
   })
 

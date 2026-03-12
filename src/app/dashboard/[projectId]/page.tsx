@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { redirect } from 'next/navigation'
 import type { DBProjectWithRelations } from '@/lib/db-types'
 import DashboardProjectView from '@/components/dashboard/DashboardProjectView'
 import { getCached, setCached } from '@/lib/client-cache'
 
 interface Props {
-  params: { projectId: string }
+  params: Promise<{ projectId: string }>
 }
 
 function ProjectSkeleton() {
@@ -108,7 +108,8 @@ function ProjectSkeleton() {
 }
 
 export default function DashboardProjectPage({ params }: Props) {
-  const cacheKey = `project-${params.projectId}`
+  const { projectId } = use(params)
+  const cacheKey = `project-${projectId}`
   const cached = getCached<DBProjectWithRelations>(cacheKey)
   const [project, setProject] = useState<DBProjectWithRelations | null>(cached)
   const [loading, setLoading] = useState(!cached)
@@ -116,7 +117,7 @@ export default function DashboardProjectPage({ params }: Props) {
 
   // Always revalidate in background; only blocks on first load (no cache)
   useEffect(() => {
-    fetch(`/api/projects/${params.projectId}`)
+    fetch(`/api/projects/${projectId}`)
       .then(r => {
         if (r.status === 404) { setNotFound(true); setLoading(false); return null }
         return r.json()
@@ -129,7 +130,7 @@ export default function DashboardProjectPage({ params }: Props) {
         }
       })
       .catch(() => setLoading(false))
-  }, [params.projectId, cacheKey])
+  }, [projectId, cacheKey])
 
   if (notFound) return redirect('/dashboard/inicio')
   if (loading) return <ProjectSkeleton />

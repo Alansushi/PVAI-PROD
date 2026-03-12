@@ -28,27 +28,29 @@ async function getProjectForUser(projectId: string, userId: string) {
   return project
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await getProjectForUser(params.id, session.user.id)
+  const project = await getProjectForUser(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   return NextResponse.json(project)
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const existing = await getProjectForUser(params.id, session.user.id)
+  const existing = await getProjectForUser(id, session.user.id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
 
   const updated = await prisma.project.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       title: body.title ?? undefined,
       type: body.type ?? undefined,
@@ -74,11 +76,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(updated)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const existing = await getProjectForUser(params.id, session.user.id)
+  const existing = await getProjectForUser(id, session.user.id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const orgMember = await prisma.orgMember.findFirst({
@@ -88,13 +91,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await prisma.project.delete({ where: { id: params.id } })
+  await prisma.project.delete({ where: { id } })
 
   await createAuditLog({
     userId: session.user.id,
     action: 'delete',
     entity: 'project',
-    entityId: params.id,
+    entityId: id,
     entityName: existing.title,
     oldValue: { title: existing.title },
   })

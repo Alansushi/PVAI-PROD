@@ -21,26 +21,28 @@ async function verifyProjectAccess(projectId: string, userId: string) {
   return project
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const members = await prisma.projectMember.findMany({
-    where: { projectId: params.id },
+    where: { projectId: id },
     include: { user: { select: { id: true, name: true, email: true, image: true } } },
   })
 
   return NextResponse.json(members)
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
@@ -70,14 +72,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const existingPM = await prisma.projectMember.findFirst({
-      where: { projectId: params.id, userId },
+      where: { projectId: id, userId },
     })
     if (existingPM) return NextResponse.json({ error: 'Already a member' }, { status: 409 })
   }
 
   const member = await prisma.projectMember.create({
     data: {
-      projectId: params.id,
+      projectId: id,
       name,
       initials,
       color,
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     entity: 'member',
     entityId: member.id,
     entityName: name,
-    projectId: params.id,
+    projectId: id,
     newValue: { name, role, isExternal },
   })
 
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const [inviter, projectWithOrg] = await Promise.all([
       prisma.user.findUnique({ where: { id: session.user.id } }),
       prisma.project.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: { organization: true },
       }),
     ])

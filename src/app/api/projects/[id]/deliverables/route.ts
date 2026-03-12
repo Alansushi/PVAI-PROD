@@ -22,26 +22,28 @@ async function verifyProjectAccess(projectId: string, userId: string) {
   return project
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const deliverables = await prisma.deliverable.findMany({
-    where: { projectId: params.id },
+    where: { projectId: id },
     orderBy: { position: 'asc' },
   })
 
   return NextResponse.json(deliverables)
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const deliverable = await db.deliverable.create({
     data: {
-      projectId: params.id,
+      projectId: id,
       name,
       status: status ?? 'warn',
       meta: meta ?? '',
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     entity: 'deliverable',
     entityId: deliverable.id,
     entityName: deliverable.name,
-    projectId: params.id,
+    projectId: id,
     deliverableId: deliverable.id,
     newValue: { name, status, priority },
   })
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         title: 'Nueva tarea asignada',
         body: `"${deliverable.name}" en ${project.title}`,
         type: 'task_created',
-        projectId: params.id,
+        projectId: id,
         entityId: deliverable.id,
       },
     })

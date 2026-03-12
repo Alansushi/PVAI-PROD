@@ -23,16 +23,17 @@ async function verifyProjectAccess(projectId: string, userId: string) {
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string; packageId: string } },
+  { params }: { params: Promise<{ id: string; packageId: string }> },
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, packageId } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const existing = await db.deliverablePackage.findFirst({
-    where: { id: params.packageId, projectId: params.id },
+    where: { id: packageId, projectId: id },
     include: { deliverables: { select: { id: true } } },
   })
   if (!existing) return NextResponse.json({ error: 'Package not found' }, { status: 404 })
@@ -45,17 +46,17 @@ export async function PUT(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pkg = await db.$transaction(async (tx: any) => {
     await tx.deliverablePackage.update({
-      where: { id: params.packageId },
+      where: { id: packageId },
       data: { name, description: description ?? null },
     })
 
     // Recreate milestones
-    await tx.milestone.deleteMany({ where: { packageId: params.packageId } })
+    await tx.milestone.deleteMany({ where: { packageId } })
     if (milestones.length > 0) {
       await tx.milestone.createMany({
         data: milestones.map((m: { type: string; date: string; label?: string }) => ({
-          packageId: params.packageId,
-          projectId: params.id,
+          packageId,
+          projectId: id,
           type: m.type,
           date: new Date(m.date),
           label: m.label ?? null,
@@ -76,13 +77,13 @@ export async function PUT(
     }
     if (toLink.length > 0) {
       await tx.deliverable.updateMany({
-        where: { id: { in: toLink }, projectId: params.id },
-        data: { packageId: params.packageId },
+        where: { id: { in: toLink }, projectId: id },
+        data: { packageId },
       })
     }
 
     return tx.deliverablePackage.findUnique({
-      where: { id: params.packageId },
+      where: { id: packageId },
       include: {
         milestones: { orderBy: { date: 'asc' } },
         deliverables: { select: { id: true, name: true, status: true, dueDate: true } },
@@ -95,20 +96,21 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; packageId: string } },
+  { params }: { params: Promise<{ id: string; packageId: string }> },
 ) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, packageId } = await params
 
-  const project = await verifyProjectAccess(params.id, session.user.id)
+  const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const existing = await db.deliverablePackage.findFirst({
-    where: { id: params.packageId, projectId: params.id },
+    where: { id: packageId, projectId: id },
   })
   if (!existing) return NextResponse.json({ error: 'Package not found' }, { status: 404 })
 
-  await db.deliverablePackage.delete({ where: { id: params.packageId } })
+  await db.deliverablePackage.delete({ where: { id: packageId } })
 
   return NextResponse.json({ ok: true })
 }
