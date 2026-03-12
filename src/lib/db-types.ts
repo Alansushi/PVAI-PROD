@@ -18,6 +18,15 @@ export interface DBOrganization {
   updatedAt: Date
 }
 
+export interface DBOrgMember {
+  id: string
+  userId: string
+  organizationId: string
+  role: string
+  canDeleteProjects: boolean
+  joinedAt: Date
+}
+
 export interface DBProject {
   id: string
   organizationId: string

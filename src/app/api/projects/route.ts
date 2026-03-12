@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       name: creatorName,
       initials,
       color: '#2E8FC0',
-      role: 'Director',
+      role: 'Colaborador',
       isExternal: false,
     },
   })

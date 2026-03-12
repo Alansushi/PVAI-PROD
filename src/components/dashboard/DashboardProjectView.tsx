@@ -248,7 +248,21 @@ export default function DashboardProjectView({ project }: Props) {
     const upcoming = packages
       .flatMap(p =>
         p.milestones
-          .filter(m => m.type === 'pre-entrega' && new Date(m.date) >= today)
+          .filter(m => m.type === 'pre-entrega' && (toLocalDate(m.date) ?? new Date(m.date)) >= today)
+          .map(m => ({ milestone: m, pkg: p })),
+      )
+      .sort((a, b) => new Date(a.milestone.date).getTime() - new Date(b.milestone.date).getTime())
+    return upcoming[0] ?? null
+  }, [packages])
+
+  // Next upcoming entrega final
+  const nextFinalEntrega = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const upcoming = packages
+      .flatMap(p =>
+        p.milestones
+          .filter(m => m.type === 'final' && (toLocalDate(m.date) ?? new Date(m.date)) >= today)
           .map(m => ({ milestone: m, pkg: p })),
       )
       .sort((a, b) => new Date(a.milestone.date).getTime() - new Date(b.milestone.date).getTime())
@@ -342,7 +356,7 @@ export default function DashboardProjectView({ project }: Props) {
           <h1 className="font-display text-[21px] font-black">{project.title}</h1>
           <div className="text-[11px] text-pv-gray mt-0.5">{project.type}</div>
         </div>
-        <div className="flex gap-1.5 items-center">
+        <div className="flex flex-wrap gap-1.5 items-center">
           {/* Minuta button */}
           <button
             onClick={() => setMinutaOpen(true)}
@@ -393,13 +407,13 @@ export default function DashboardProjectView({ project }: Props) {
             }`}
           >
             <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1 ${STATUS_DOT[project.status] ?? 'bg-pv-gray'}`} />
-            {project.status === 'ok' ? 'Al corriente' : project.status === 'warn' ? 'En riesgo' : 'Cobro vencido'}
+            {project.status === 'ok' ? 'Al corriente' : project.status === 'warn' ? 'En riesgo' : 'Crítico'}
           </div>
         </div>
       </div>
 
       {/* 2×2 widget grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {/* Row 1 — Calendar + Notes */}
         <ProjectCalendarWidget milestones={calendarMilestones} />
         <ProjectNotesWidget projectId={project.id} />
@@ -431,7 +445,7 @@ export default function DashboardProjectView({ project }: Props) {
           <div className="flex-shrink-0 text-center">
             <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-amber/70 mb-0.5">Próxima pre-entrega</div>
             <div className="font-display text-[18px] font-black text-pv-amber leading-none">
-              {new Date(nextPreEntrega.milestone.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+              {(toLocalDate(nextPreEntrega.milestone.date) ?? new Date(nextPreEntrega.milestone.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -455,6 +469,43 @@ export default function DashboardProjectView({ project }: Props) {
                   className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-pv-amber/20 text-pv-amber hover:bg-pv-amber/30 transition-colors"
                 >
                   +{nextPreEntrega.pkg.deliverables.length - 3} más →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Próxima entrega final */}
+      {nextFinalEntrega && (
+        <div className="bg-pv-accent/10 border border-pv-accent/25 rounded-xl px-4 py-3 flex items-start gap-4">
+          <div className="flex-shrink-0 text-center">
+            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-accent/70 mb-0.5">Próxima entrega final</div>
+            <div className="font-display text-[18px] font-black text-pv-accent leading-none">
+              {(toLocalDate(nextFinalEntrega.milestone.date) ?? new Date(nextFinalEntrega.milestone.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[12px] font-bold text-white">{nextFinalEntrega.pkg.name}</span>
+              {nextFinalEntrega.milestone.label && (
+                <span className="text-[10px] text-pv-accent/80">— {nextFinalEntrega.milestone.label}</span>
+              )}
+              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-pv-accent/20 text-pv-accent">final</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {nextFinalEntrega.pkg.deliverables.slice(0, 3).map(d => (
+                <span key={d.id} className="flex items-center gap-1 text-[10px] text-white/70 bg-white/[0.06] rounded-md px-2 py-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[d.status] ?? 'bg-pv-gray'}`} />
+                  {d.name}
+                </span>
+              ))}
+              {nextFinalEntrega.pkg.deliverables.length > 3 && (
+                <button
+                  onClick={() => openEditPackage(nextFinalEntrega.pkg)}
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-pv-accent/20 text-pv-accent hover:bg-pv-accent/30 transition-colors"
+                >
+                  +{nextFinalEntrega.pkg.deliverables.length - 3} más →
                 </button>
               )}
             </div>
@@ -565,9 +616,10 @@ export default function DashboardProjectView({ project }: Props) {
             </button>
           </div>
         </div>
-        <div className="grid border-t border-white/[0.07]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+        <div className="overflow-x-auto">
+        <div className="grid border-t border-white/[0.07] min-w-[540px]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           {COL_CONFIG.map(col => (
-            <div key={col.key} className="border-r border-white/[0.06] last:border-r-0 flex flex-col min-h-[180px]">
+            <div key={col.key} className="border-r border-white/[0.06] last:border-r-0 flex flex-col min-h-[180px] min-w-[180px]">
               <div className={`px-3 py-2 flex items-center justify-between border-b border-white/[0.06] ${col.headCls}`}>
                 <span className={`text-[10px] font-bold uppercase tracking-[0.6px] flex items-center gap-1.5 ${col.cls}`}>
                   {col.label}
@@ -643,6 +695,7 @@ export default function DashboardProjectView({ project }: Props) {
             </div>
           ))}
         </div>
+        </div>
       </div>
 
       {/* Packages panel */}
@@ -703,7 +756,7 @@ export default function DashboardProjectView({ project }: Props) {
                             ? 'bg-white/[0.05] text-pv-gray/50 line-through'
                             : 'bg-pv-amber/15 text-pv-amber'
                         }`}>
-                          ▽ {new Date(m.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                          ▽ {(toLocalDate(m.date) ?? new Date(m.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                           {m.label ? ` · ${m.label}` : ' · pre-entrega'}
                           {isPast(m.date) && ' · vencida'}
                         </span>
@@ -714,7 +767,7 @@ export default function DashboardProjectView({ project }: Props) {
                             ? 'bg-white/[0.05] text-pv-gray/50 line-through'
                             : 'bg-pv-accent/15 text-pv-accent'
                         }`}>
-                          ● {new Date(m.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                          ● {(toLocalDate(m.date) ?? new Date(m.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                           {m.label ? ` · ${m.label}` : ' · final'}
                           {isPast(m.date) && ' · vencida'}
                         </span>

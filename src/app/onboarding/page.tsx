@@ -40,6 +40,7 @@ export default async function OnboardingPage() {
         userId: session.user.id,
         organizationId: org.id,
         role: 'member',
+        canDeleteProjects: true,
       },
     })
 

@@ -1,13 +1,13 @@
 export type AgentPromptType =
   | 'riesgos' | 'avance' | 'tiempo'
-  | 'cobro' | 'pagos'
+  | 'siguiente_entrega' | 'estado_paquetes'
   | 'equipo' | 'sin_asignar'
 
 export interface AgentPrompt {
   id: AgentPromptType
   label: string
   prompt: string
-  category: 'analisis' | 'cobro' | 'equipo'
+  category: 'analisis' | 'paquetes' | 'equipo'
   icon: string
 }
 
@@ -34,20 +34,20 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
     category: 'analisis',
     icon: '📅',
   },
-  // Cobros
+  // Paquetes
   {
-    id: 'cobro',
-    label: '¿Qué falta para cobrar?',
-    prompt: '¿Qué entregables o condiciones faltan para liberar el próximo cobro? Lista lo pendiente de forma accionable.',
-    category: 'cobro',
-    icon: '💰',
+    id: 'siguiente_entrega',
+    label: '¿Cuál es la siguiente entrega?',
+    prompt: 'Revisa los paquetes del proyecto y dime cuál es el próximo milestone de pre-entrega o entrega final. ¿Estamos preparados para llegar a esa fecha?',
+    category: 'paquetes',
+    icon: '📦',
   },
   {
-    id: 'pagos',
-    label: 'Estado de pagos',
-    prompt: 'Resume el estado de los cobros del proyecto: monto esperado, estatus y si hay algún riesgo de retraso.',
-    category: 'cobro',
-    icon: '🧾',
+    id: 'estado_paquetes',
+    label: 'Estado de los paquetes',
+    prompt: 'Haz un resumen del estado actual de cada paquete de entregables: cuántos están completados, cuántos en proceso y cuántos en riesgo. ¿Alguno tiene entregas próximas con tareas sin terminar?',
+    category: 'paquetes',
+    icon: '🗂',
   },
   // Equipo
   {
@@ -68,7 +68,7 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
 
 export const PROMPT_CATEGORIES: Record<AgentPrompt['category'], string> = {
   analisis: 'Análisis',
-  cobro: 'Cobros',
+  paquetes: 'Paquetes',
   equipo: 'Equipo',
 }
 

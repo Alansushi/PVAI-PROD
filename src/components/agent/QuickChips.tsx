@@ -5,7 +5,7 @@ interface Props {
   onMinuta: () => void
 }
 
-const categories = ['analisis', 'cobro', 'equipo'] as const
+const categories = ['analisis', 'paquetes', 'equipo'] as const
 
 export default function QuickChips({ onAsk, onMinuta }: Props) {
   return (

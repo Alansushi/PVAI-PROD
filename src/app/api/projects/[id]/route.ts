@@ -81,6 +81,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const existing = await getProjectForUser(params.id, session.user.id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const orgMember = await prisma.orgMember.findFirst({
+    where: { userId: session.user.id, organizationId: existing.organizationId },
+  })
+  if (!orgMember?.canDeleteProjects) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   await prisma.project.delete({ where: { id: params.id } })
 
   await createAuditLog({

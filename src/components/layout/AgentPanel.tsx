@@ -19,7 +19,7 @@ export default function AgentPanel() {
   return (
     <div
       className="border-l border-white/[0.06] flex flex-col overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))', position: 'fixed', right: 0, top: 57, bottom: 0, width: 295 }}
+      style={{ background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))', position: 'fixed', right: 0, top: 68, bottom: 0, width: 295 }}
     >
       {/* Header */}
       <div className="px-3.5 py-3 border-b border-pv-accent/15 flex items-center gap-1.5 flex-shrink-0">
