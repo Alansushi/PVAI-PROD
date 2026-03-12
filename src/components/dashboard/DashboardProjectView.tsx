@@ -1,0 +1,853 @@
+'use client'
+
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage } from '@/lib/db-types'
+import { PRIORITY_COLORS } from '@/lib/constants'
+import { toLocalDate } from '@/lib/dates'
+import DBTaskModal from './DBTaskModal'
+import InviteMemberModal from './InviteMemberModal'
+import DBMinutaModal from './DBMinutaModal'
+import CollaboratorProfileModal from './CollaboratorProfileModal'
+import ProjectCalendarWidget from './ProjectCalendarWidget'
+import type { CalendarMilestone } from './ProjectCalendarWidget'
+import ProjectNotesWidget from './ProjectNotesWidget'
+import MinutasPanel from './MinutasPanel'
+import PackageModal from './PackageModal'
+
+type ProjectWithRelations = DBProjectWithRelations
+
+interface Props {
+  project: ProjectWithRelations
+}
+
+const COL_CONFIG = [
+  { key: 'ok',     label: '✓ Completadas', cls: 'text-pv-green',  countCls: 'bg-pv-green/20 text-pv-green',  headCls: 'bg-pv-green/8',   borderCls: 'border-l-2 border-pv-green/50' },
+  { key: 'warn',   label: '⏳ En proceso',  cls: 'text-pv-amber',  countCls: 'bg-pv-amber/20 text-pv-amber',  headCls: 'bg-pv-amber/8',   borderCls: 'border-l-2 border-pv-amber/50' },
+  { key: 'danger', label: '🔴 En riesgo',   cls: 'text-pv-red',    countCls: 'bg-pv-red/20 text-pv-red',      headCls: 'bg-pv-red/8',     borderCls: 'border-l-2 border-pv-red/50' },
+]
+
+const DATE_CLS: Record<string, string> = {
+  ok:     'text-pv-green bg-pv-green/15',
+  warn:   'text-pv-amber bg-pv-amber/15',
+  danger: 'text-pv-red bg-pv-red/15',
+}
+
+const BAR_CLS: Record<string, string> = {
+  ok:     'bg-pv-green/85 text-white',
+  prog:   'bg-pv-accent/85 text-white',
+  warn:   'bg-pv-amber/90 text-black',
+  danger: 'bg-pv-red/90 text-white',
+}
+
+const STATUS_DOT: Record<string, string> = {
+  ok:     'bg-pv-green',
+  warn:   'bg-pv-amber',
+  danger: 'bg-pv-red',
+}
+
+function daysBetween(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+type ColSort = { key: 'createdAt' | 'updatedAt'; dir: 'desc' | 'asc' }
+const DEFAULT_SORT: ColSort = { key: 'createdAt', dir: 'desc' }
+
+const SORT_CYCLE: ColSort[] = [
+  { key: 'createdAt', dir: 'desc' },
+  { key: 'createdAt', dir: 'asc'  },
+  { key: 'updatedAt', dir: 'desc' },
+  { key: 'updatedAt', dir: 'asc'  },
+]
+
+function nextSort(current: ColSort): ColSort {
+  const idx = SORT_CYCLE.findIndex(s => s.key === current.key && s.dir === current.dir)
+  return SORT_CYCLE[(idx + 1) % SORT_CYCLE.length]
+}
+
+function getSorted(items: DBDeliverable[], sort: ColSort): DBDeliverable[] {
+  return [...items].sort((a, b) => {
+    const av = new Date(a[sort.key]).getTime()
+    const bv = new Date(b[sort.key]).getTime()
+    return sort.dir === 'desc' ? bv - av : av - bv
+  })
+}
+
+function sortLabel(sort: ColSort): string {
+  const base = sort.key === 'createdAt' ? 'Creación' : 'Actualizó'
+  return `${base} ${sort.dir === 'desc' ? '↓' : '↑'}`
+}
+
+
+const MAX_VISIBLE = 3
+
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+const ACTION_LABEL: Record<string, string> = {
+  create: 'creó',
+  update: 'actualizó',
+  delete: 'eliminó',
+}
+
+function timeAgo(date: Date): string {
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
+  if (diff < 60) return 'hace un momento'
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`
+  return `hace ${Math.floor(diff / 86400)} días`
+}
+
+export default function DashboardProjectView({ project }: Props) {
+  const [deliverables, setDeliverables] = useState<DBDeliverable[]>(project.deliverables)
+  const [members, setMembers] = useState<DBProjectMember[]>(project.members as DBProjectMember[])
+  const [packages, setPackages] = useState<DBDeliverablePackage[]>([])
+  const [packagesLoading, setPackagesLoading] = useState(true)
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [minutaOpen, setMinutaOpen] = useState(false)
+  const [pkgModalOpen, setPkgModalOpen] = useState(false)
+  const [editingDeliverable, setEditingDeliverable] = useState<DBDeliverable | null>(null)
+  const [editingPackage, setEditingPackage] = useState<DBDeliverablePackage | null>(null)
+  const [defaultStatus, setDefaultStatus] = useState<'ok' | 'warn' | 'danger'>('warn')
+  const [profileMember, setProfileMember] = useState<DBProjectMember | null>(null)
+  const [activityLogs, setActivityLogs] = useState<DBAuditLogEntry[]>([])
+  const [minutasKey, setMinutasKey] = useState(0)
+  const [colSorts, setColSorts] = useState<Record<string, ColSort>>({
+    ok: DEFAULT_SORT, warn: DEFAULT_SORT, danger: DEFAULT_SORT,
+  })
+
+  const fetchActivity = useCallback(() => {
+    setActivityLoading(true)
+    fetch(`/api/projects/${project.id}/activity`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setActivityLogs)
+      .catch(() => {})
+      .finally(() => setActivityLoading(false))
+  }, [project.id])
+
+  const fetchDeliverables = useCallback(() => {
+    fetch(`/api/projects/${project.id}/deliverables`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setDeliverables(data) })
+      .catch(() => {})
+  }, [project.id])
+
+  const fetchPackages = useCallback(() => {
+    setPackagesLoading(true)
+    fetch(`/api/projects/${project.id}/packages`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setPackages)
+      .catch(() => {})
+      .finally(() => setPackagesLoading(false))
+  }, [project.id])
+
+  useEffect(() => {
+    fetchActivity()
+    fetchPackages()
+  }, [fetchActivity, fetchPackages])
+
+  const visibleMembers = members.slice(0, MAX_VISIBLE)
+  const overflow = members.length - MAX_VISIBLE
+
+  const done         = deliverables.filter(d => d.status === 'ok').length
+  const total        = deliverables.length
+  const pct          = total > 0 ? Math.round((done / total) * 100) : 0
+  const agentPending = deliverables.filter(
+    d => (d.meta === 'minuta' || d.meta === 'agente') && d.status !== 'ok'
+  ).length
+
+  const byStatus = {
+    ok:     deliverables.filter(d => d.status === 'ok'),
+    warn:   deliverables.filter(d => d.status === 'warn'),
+    danger: deliverables.filter(d => d.status === 'danger'),
+  }
+
+  // Dynamic Gantt: if no manual ganttRows, compute from deliverables with dates
+  const ganttRows = useMemo(() => {
+    if (project.ganttRows.length > 0) return project.ganttRows
+
+    const withDates = deliverables.filter(d => d.startDate && d.dueDate)
+    if (withDates.length === 0) return []
+
+    const startDates = withDates.map(d => toLocalDate(d.startDate)!.getTime())
+    const baseDate = new Date(Math.min(...startDates))
+
+    const totalDays = (() => {
+      const endDates = withDates.map(d => toLocalDate(d.dueDate)!.getTime())
+      const maxEnd = new Date(Math.max(...endDates))
+      return Math.max(daysBetween(baseDate, maxEnd), 7)
+    })()
+
+    return withDates.map((d, i) => {
+      const start = daysBetween(baseDate, toLocalDate(d.startDate)!)
+      const duration = Math.max(daysBetween(toLocalDate(d.startDate)!, toLocalDate(d.dueDate)!), 1)
+      return {
+        id: `auto-${d.id}`,
+        projectId: project.id,
+        label: d.name,
+        ownerName: d.ownerName ?? '—',
+        start,
+        duration,
+        status: d.status === 'ok' ? 'ok' : d.status === 'danger' ? 'danger' : 'prog',
+        order: i,
+        _totalDays: totalDays,
+      }
+    })
+  }, [deliverables, project.ganttRows, project.id])
+
+  // Compute total days for Gantt scale
+  const ganttTotalDays = useMemo(() => {
+    if (project.ganttRows.length > 0) return 35
+    const withTotal = ganttRows as Array<{ _totalDays?: number }>
+    return withTotal[0]?._totalDays ?? 35
+  }, [ganttRows, project.ganttRows.length])
+
+  // Base date for auto-gantt (earliest startDate)
+  const baseDate = useMemo(() => {
+    if (project.ganttRows.length > 0) return null
+    const withDates = deliverables.filter(d => d.startDate && d.dueDate)
+    if (withDates.length === 0) return null
+    const startDates = withDates.map(d => toLocalDate(d.startDate)!.getTime())
+    return new Date(Math.min(...startDates))
+  }, [deliverables, project.ganttRows.length])
+
+  // Array of dates for Gantt header
+  const ganttDates = useMemo(() => {
+    if (!baseDate || ganttRows.length === 0) return []
+    const dates: Date[] = []
+    for (let i = 0; i < ganttTotalDays; i++) {
+      const d = new Date(baseDate)
+      d.setDate(d.getDate() + i)
+      dates.push(d)
+    }
+    return dates
+  }, [baseDate, ganttTotalDays, ganttRows.length])
+
+  // Offset in days from baseDate to today (for "today" line)
+  const todayOffset = useMemo(() => {
+    if (!baseDate) return -1
+    return daysBetween(baseDate, new Date())
+  }, [baseDate])
+
+  // Calendar milestones from packages
+  const calendarMilestones = useMemo<CalendarMilestone[]>(() =>
+    packages.flatMap(p =>
+      p.milestones.map(m => ({
+        id: m.id,
+        title: `${m.label ?? p.name} (${m.type})`,
+        date: new Date(m.date).toISOString().slice(0, 10),
+        type: m.type,
+      })),
+    ),
+  [packages])
+
+  // Next upcoming pre-entrega
+  const nextPreEntrega = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const upcoming = packages
+      .flatMap(p =>
+        p.milestones
+          .filter(m => m.type === 'pre-entrega' && new Date(m.date) >= today)
+          .map(m => ({ milestone: m, pkg: p })),
+      )
+      .sort((a, b) => new Date(a.milestone.date).getTime() - new Date(b.milestone.date).getTime())
+    return upcoming[0] ?? null
+  }, [packages])
+
+  // Milestone vertical lines for Gantt
+  const milestoneOffsets = useMemo(() => {
+    if (!baseDate || ganttRows.length === 0) return []
+    return packages.flatMap(p =>
+      p.milestones.map(m => {
+        const offset = daysBetween(baseDate, new Date(m.date))
+        return { ...m, offset, packageName: p.name }
+      }),
+    ).filter(m => m.offset >= 0 && m.offset <= ganttTotalDays)
+  }, [packages, baseDate, ganttTotalDays, ganttRows.length])
+
+  function openNewTask(status: 'ok' | 'warn' | 'danger' = 'warn') {
+    setEditingDeliverable(null)
+    setDefaultStatus(status)
+    setTaskModalOpen(true)
+  }
+
+  function openEditTask(d: DBDeliverable) {
+    setEditingDeliverable(d)
+    setTaskModalOpen(true)
+  }
+
+  function handleSaved(saved: DBDeliverable) {
+    setDeliverables(prev => {
+      const idx = prev.findIndex(d => d.id === saved.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = saved
+        return next
+      }
+      return [...prev, saved]
+    })
+  }
+
+  function handleDeleted(id: string) {
+    setDeliverables(prev => prev.filter(d => d.id !== id))
+  }
+
+  function handleMemberAdded(member: DBProjectMember) {
+    setMembers(prev => [...prev, member])
+  }
+
+  function handleMemberUpdated(updated: DBProjectMember) {
+    setMembers(prev => prev.map(m => m.id === updated.id ? updated : m))
+    setProfileMember(updated)
+  }
+
+  function handleMemberRemoved(memberId: string) {
+    setMembers(prev => prev.filter(m => m.id !== memberId))
+    setProfileMember(null)
+  }
+
+  function handlePackageSaved(pkg: DBDeliverablePackage) {
+    setPackages(prev => {
+      const idx = prev.findIndex(p => p.id === pkg.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = pkg
+        return next
+      }
+      return [...prev, pkg]
+    })
+    fetchDeliverables()
+  }
+
+  function handlePackageDeleted(id: string) {
+    setPackages(prev => prev.filter(p => p.id !== id))
+  }
+
+  function openNewPackage() {
+    setEditingPackage(null)
+    setPkgModalOpen(true)
+  }
+
+  function openEditPackage(pkg: DBDeliverablePackage) {
+    setEditingPackage(pkg)
+    setPkgModalOpen(true)
+  }
+
+  return (
+    <div className="p-5 flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="font-display text-[21px] font-black">{project.title}</h1>
+          <div className="text-[11px] text-pv-gray mt-0.5">{project.type}</div>
+        </div>
+        <div className="flex gap-1.5 items-center">
+          {/* Minuta button */}
+          <button
+            onClick={() => setMinutaOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-[#2E8FC0] border border-[#2E8FC0]/30 rounded-lg hover:bg-[#2E8FC0]/10 transition-colors"
+          >
+            ✦ Minuta
+          </button>
+
+          {/* Team avatars */}
+          <div className="flex items-center gap-1.5">
+            {visibleMembers.map(m => (
+              <div
+                key={m.id}
+                title={m.name}
+                onClick={() => setProfileMember(m)}
+                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-pv-navy cursor-pointer hover:ring-2 hover:ring-white/40 transition-all"
+                style={{ background: m.color }}
+              >
+                {m.initials}
+              </div>
+            ))}
+            {overflow > 0 && (
+              <div
+                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-pv-gray bg-white/[0.08] border-2 border-pv-navy"
+                title={`${overflow} más`}
+              >
+                +{overflow}
+              </div>
+            )}
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="w-[30px] h-[30px] rounded-full border-2 border-dashed border-white/20 flex items-center justify-center text-base text-pv-gray hover:border-pv-accent hover:text-pv-accent hover:-translate-y-0.5 transition-all"
+              title="Agregar colaborador"
+            >
+              +
+            </button>
+            <span className="text-[10px] text-pv-gray ml-0.5">
+              {members.length} persona{members.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div
+            className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${
+              project.status === 'ok'
+                ? 'bg-pv-green/10 border-pv-green/30 text-pv-green'
+                : project.status === 'warn'
+                ? 'bg-pv-amber/10 border-pv-amber/30 text-pv-amber'
+                : 'bg-pv-red/10 border-pv-red/30 text-pv-red'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1 ${STATUS_DOT[project.status] ?? 'bg-pv-gray'}`} />
+            {project.status === 'ok' ? 'Al corriente' : project.status === 'warn' ? 'En riesgo' : 'Cobro vencido'}
+          </div>
+        </div>
+      </div>
+
+      {/* 2×2 widget grid */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {/* Row 1 — Calendar + Notes */}
+        <ProjectCalendarWidget milestones={calendarMilestones} />
+        <ProjectNotesWidget projectId={project.id} />
+
+        {/* Row 2 — KPI: Avance del proyecto */}
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-3">
+          <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-1.5">Avance del proyecto</div>
+          <div className="font-display text-[22px] font-black leading-none text-pv-accent">{pct}%</div>
+          <div className="text-[10px] text-pv-gray mt-0.5">{done}/{total} completadas</div>
+          <div className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-lg mt-1.5 bg-pv-accent/20 text-pv-accent">
+            📐 {project.type}
+          </div>
+        </div>
+
+        {/* Row 2 — KPI: Tareas generadas/actualizadas con IA */}
+        <div className="bg-pv-purple/8 border border-pv-purple/20 rounded-xl px-3.5 py-3">
+          <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-1.5">Tareas generadas con IA</div>
+          <div className="font-display text-[22px] font-black leading-none text-[#B89EE8]">{agentPending}</div>
+          <div className="text-[10px] text-pv-gray mt-0.5">pendientes desde la última minuta</div>
+          <div className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-lg mt-1.5 bg-pv-purple/20 text-[#B89EE8]">
+            {agentPending > 0 ? '✦ Agente activo' : '✦ Sin pendientes'}
+          </div>
+        </div>
+      </div>
+
+      {/* Próxima pre-entrega */}
+      {nextPreEntrega && (
+        <div className="bg-pv-amber/10 border border-pv-amber/25 rounded-xl px-4 py-3 flex items-start gap-4">
+          <div className="flex-shrink-0 text-center">
+            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-amber/70 mb-0.5">Próxima pre-entrega</div>
+            <div className="font-display text-[18px] font-black text-pv-amber leading-none">
+              {new Date(nextPreEntrega.milestone.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[12px] font-bold text-white">{nextPreEntrega.pkg.name}</span>
+              {nextPreEntrega.milestone.label && (
+                <span className="text-[10px] text-pv-amber/80">— {nextPreEntrega.milestone.label}</span>
+              )}
+              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-pv-amber/20 text-pv-amber">pre-entrega</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {nextPreEntrega.pkg.deliverables.slice(0, 3).map(d => (
+                <span key={d.id} className="flex items-center gap-1 text-[10px] text-white/70 bg-white/[0.06] rounded-md px-2 py-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[d.status] ?? 'bg-pv-gray'}`} />
+                  {d.name}
+                </span>
+              ))}
+              {nextPreEntrega.pkg.deliverables.length > 3 && (
+                <button
+                  onClick={() => openEditPackage(nextPreEntrega.pkg)}
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-pv-amber/20 text-pv-amber hover:bg-pv-amber/30 transition-colors"
+                >
+                  +{nextPreEntrega.pkg.deliverables.length - 3} más →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gantt — manual rows OR auto-generated from deliverables */}
+      {ganttRows.length > 0 && (
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
+            <h3 className="text-xs font-semibold">Cronograma</h3>
+            {project.ganttRows.length === 0 && (
+              <span className="text-[9px] text-pv-gray/60 italic">Generado desde entregables</span>
+            )}
+          </div>
+          {/* Date header */}
+          {ganttDates.length > 0 && (
+            <div className="grid border-b border-white/[0.06]" style={{ gridTemplateColumns: '155px 1fr' }}>
+              <div className="px-4 py-1.5 text-[9px] text-pv-gray/50 uppercase tracking-[0.5px]">Tarea</div>
+              <div className="relative h-[28px] overflow-hidden">
+                {ganttDates.map((date, i) => {
+                  const left = ((i / ganttTotalDays) * 100).toFixed(2)
+                  const showLabel = ganttTotalDays <= 21 || i % 3 === 0
+                  return showLabel ? (
+                    <div
+                      key={i}
+                      className="absolute top-0 text-[8px] text-pv-gray/60 pt-1 select-none"
+                      style={{ left: `${left}%` }}
+                    >
+                      {date.getDate()} {MONTHS[date.getMonth()]}
+                    </div>
+                  ) : null
+                })}
+                {todayOffset >= 0 && todayOffset <= ganttTotalDays && (
+                  <div
+                    className="absolute top-0 bottom-0 w-px bg-pv-accent/40"
+                    style={{ left: `${(todayOffset / ganttTotalDays) * 100}%` }}
+                  />
+                )}
+                {milestoneOffsets.map((m, i) => (
+                  <div
+                    key={`mhdr-${i}`}
+                    title={`${m.packageName}${m.label ? ' — ' + m.label : ''} (${m.type})`}
+                    className={`absolute top-0 bottom-0 w-px ${m.type === 'pre-entrega' ? 'bg-pv-amber/50' : 'bg-pv-red/50'}`}
+                    style={{ left: `${(m.offset / ganttTotalDays) * 100}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="max-h-[220px] overflow-y-auto">
+            {ganttRows.map((r) => {
+              const left  = ((r.start / ganttTotalDays) * 100).toFixed(1)
+              const width = Math.max((r.duration / ganttTotalDays) * 100, 3).toFixed(1)
+              return (
+                <div
+                  key={r.id}
+                  className="grid border-b border-white/[0.04] last:border-b-0 items-center min-h-[34px] hover:bg-white/[0.02]"
+                  style={{ gridTemplateColumns: '155px 1fr' }}
+                >
+                  <div className="px-4 py-1.5 text-[11px] font-medium text-pv-white overflow-hidden text-ellipsis whitespace-nowrap">
+                    {r.label}
+                    <small className="block text-[9px] text-pv-gray mt-px">{r.ownerName}</small>
+                  </div>
+                  <div className="relative h-[34px]">
+                    {/* Today line in row */}
+                    {todayOffset >= 0 && todayOffset <= ganttTotalDays && (
+                      <div
+                        className="absolute top-0 bottom-0 w-px bg-pv-accent/20 z-0"
+                        style={{ left: `${(todayOffset / ganttTotalDays) * 100}%` }}
+                      />
+                    )}
+                    {/* Milestone lines in row */}
+                    {milestoneOffsets.map((m, i) => (
+                      <div
+                        key={`mrow-${i}`}
+                        className={`absolute top-0 bottom-0 w-px z-0 ${m.type === 'pre-entrega' ? 'bg-pv-amber/25' : 'bg-pv-red/25'}`}
+                        style={{ left: `${(m.offset / ganttTotalDays) * 100}%` }}
+                      />
+                    ))}
+                    <div
+                      className={`absolute h-[15px] top-1/2 -translate-y-1/2 rounded-[4px] text-[8px] font-bold flex items-center px-1.5 overflow-hidden whitespace-nowrap z-10 ${BAR_CLS[r.status] ?? 'bg-pv-accent/85 text-white'}`}
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                    >
+                      {parseFloat(width) > 7 ? r.label : ''}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Kanban */}
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
+          <h3 className="text-xs font-semibold">Entregables</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-pv-gray">{done}/{total} completados</span>
+            <button
+              onClick={() => openNewTask('warn')}
+              className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors"
+            >
+              <span className="text-[12px] leading-none">+</span>
+              Nueva tarea
+            </button>
+          </div>
+        </div>
+        <div className="grid border-t border-white/[0.07]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+          {COL_CONFIG.map(col => (
+            <div key={col.key} className="border-r border-white/[0.06] last:border-r-0 flex flex-col min-h-[180px]">
+              <div className={`px-3 py-2 flex items-center justify-between border-b border-white/[0.06] ${col.headCls}`}>
+                <span className={`text-[10px] font-bold uppercase tracking-[0.6px] flex items-center gap-1.5 ${col.cls}`}>
+                  {col.label}
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${col.countCls}`}>
+                    {byStatus[col.key as keyof typeof byStatus].length}
+                  </span>
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setColSorts(prev => ({ ...prev, [col.key]: nextSort(prev[col.key]) }))}
+                    title="Cambiar orden"
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded text-pv-accent bg-pv-accent/10 hover:bg-pv-accent/20 transition-colors"
+                  >
+                    {sortLabel(colSorts[col.key])}
+                  </button>
+                  <button
+                    onClick={() => openNewTask(col.key as 'ok' | 'warn' | 'danger')}
+                    className="text-[16px] leading-none text-pv-gray hover:text-white transition-colors"
+                    title="Agregar tarea en esta columna"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="p-2 flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: '320px' }}>
+                {getSorted(byStatus[col.key as keyof typeof byStatus], colSorts[col.key]).map(d => {
+                  const ownerName = d.ownerName ?? '—'
+                  const dateVal = toLocalDate(d.dueDate)
+                  const dateStr = dateVal
+                    ? dateVal.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+                    : '-'
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => openEditTask(d)}
+                      title="Click para editar"
+                      className={`bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-2.5 cursor-pointer transition-all hover:bg-white/[0.07] hover:-translate-y-px hover:border-white/15 ${col.borderCls}`}
+                    >
+                      <div className="text-[11px] font-semibold mb-1 leading-snug">
+                        {d.name}
+                        {d.meta === 'minuta' && (
+                          <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ minuta</span>
+                        )}
+                        {d.meta === 'agente' && (
+                          <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ agente</span>
+                        )}
+                      </div>
+                      <div className="text-[9px] text-pv-gray flex items-center gap-1 flex-wrap">
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: PRIORITY_COLORS[d.priority as keyof typeof PRIORITY_COLORS] ?? '#8A9BB0' }}
+                        />
+                        <span className="text-pv-gray">{ownerName}</span>
+                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded ml-auto ${DATE_CLS[d.status]}`}>
+                          {dateStr}
+                        </span>
+                      </div>
+                      {d.createdByName && (
+                        <div className="text-[9px] text-pv-gray/60 mt-0.5">
+                          Creado por {d.createdByName}
+                        </div>
+                      )}
+                      {d.updatedByName && d.updatedAt && d.createdAt &&
+                        (new Date(d.updatedAt).getTime() - new Date(d.createdAt).getTime() > 60_000) && (
+                        <div className="text-[9px] text-pv-gray/50">
+                          Act. {new Date(d.updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · {d.updatedByName}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Packages panel */}
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-white/[0.07] flex items-center justify-between">
+          <h3 className="text-xs font-semibold">Paquetes de entregables</h3>
+          <button
+            onClick={openNewPackage}
+            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors"
+          >
+            <span className="text-[12px] leading-none">+</span>
+            Nuevo paquete
+          </button>
+        </div>
+        {packagesLoading ? (
+          <div className="p-3 flex flex-col gap-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-10 bg-white/[0.04] rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : packages.length === 0 ? (
+          <div className="px-4 py-6 text-center text-[11px] text-pv-gray/50 italic">
+            Sin paquetes. Crea uno para agrupar entregables con fechas de pre-entrega y entrega final.
+          </div>
+        ) : (
+          <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {packages.map(pkg => {
+              const preMs = pkg.milestones.filter(m => m.type === 'pre-entrega')
+              const finalMs = pkg.milestones.filter(m => m.type === 'final')
+              const today = new Date(); today.setHours(0, 0, 0, 0)
+              const isPast = (date: Date | string) => new Date(date) < today
+              const allPast = pkg.milestones.length > 0 && pkg.milestones.every(m => isPast(m.date))
+              return (
+                <div
+                  key={pkg.id}
+                  onClick={() => openEditPackage(pkg)}
+                  className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/[0.07] hover:border-white/15 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="text-[12px] font-bold text-white leading-snug">{pkg.name}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {allPast && (
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-pv-green/10 text-pv-green/60">
+                          Completado
+                        </span>
+                      )}
+                      <span className="text-[9px] text-pv-gray/50">
+                        {pkg.deliverables.length} entregable{pkg.deliverables.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Milestone chips */}
+                  {pkg.milestones.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {preMs.map(m => (
+                        <span key={m.id} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          isPast(m.date)
+                            ? 'bg-white/[0.05] text-pv-gray/50 line-through'
+                            : 'bg-pv-amber/15 text-pv-amber'
+                        }`}>
+                          ▽ {new Date(m.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                          {m.label ? ` · ${m.label}` : ' · pre-entrega'}
+                          {isPast(m.date) && ' · vencida'}
+                        </span>
+                      ))}
+                      {finalMs.map(m => (
+                        <span key={m.id} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          isPast(m.date)
+                            ? 'bg-white/[0.05] text-pv-gray/50 line-through'
+                            : 'bg-pv-accent/15 text-pv-accent'
+                        }`}>
+                          ● {new Date(m.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                          {m.label ? ` · ${m.label}` : ' · final'}
+                          {isPast(m.date) && ' · vencida'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Deliverables compact list */}
+                  {pkg.deliverables.length > 0 && (
+                    <div className="flex flex-col gap-0.5">
+                      {pkg.deliverables.slice(0, 3).map(d => (
+                        <div key={d.id} className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[d.status] ?? 'bg-pv-gray'}`} />
+                          <span className="text-[10px] text-white/70 truncate">{d.name}</span>
+                        </div>
+                      ))}
+                      {pkg.deliverables.length > 3 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditPackage(pkg) }}
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white/[0.08] text-pv-accent hover:bg-pv-accent/20 transition-colors ml-3 mt-0.5 self-start"
+                        >
+                          +{pkg.deliverables.length - 3} más →
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* DBTaskModal */}
+      <DBTaskModal
+        open={taskModalOpen}
+        onClose={() => setTaskModalOpen(false)}
+        projectId={project.id}
+        editingDeliverable={editingDeliverable}
+        defaultStatus={defaultStatus}
+        onSaved={handleSaved}
+        onDeleted={handleDeleted}
+        members={members}
+      />
+
+      {/* InviteMemberModal */}
+      <InviteMemberModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        projectId={project.id}
+        onAdded={handleMemberAdded}
+      />
+
+      {/* DBMinutaModal */}
+      <DBMinutaModal
+        open={minutaOpen}
+        onClose={() => setMinutaOpen(false)}
+        projectId={project.id}
+        members={members}
+        onApplied={() => {
+          fetchDeliverables()
+          fetchActivity()
+          setMinutasKey(k => k + 1)
+        }}
+      />
+
+      {/* Activity + Minutas */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {/* Activity feed */}
+        {activityLoading ? (
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-white/[0.07]">
+              <div className="h-3 w-40 bg-white/[0.06] rounded animate-pulse" />
+            </div>
+            <div className="flex flex-col gap-2 p-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-8 bg-white/[0.04] rounded-lg animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : activityLogs.length > 0 && (
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-white/[0.07]">
+              <h3 className="text-xs font-semibold">Últimas acciones del equipo</h3>
+            </div>
+            <div className="flex flex-col divide-y divide-white/[0.04]">
+              {activityLogs.map(log => (
+                <div key={log.id} className="px-4 py-2.5 flex items-center gap-2.5">
+                  <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                    log.action === 'create' ? 'bg-pv-green/15 text-pv-green'
+                    : log.action === 'delete' ? 'bg-pv-red/15 text-pv-red'
+                    : 'bg-pv-accent/15 text-pv-accent'
+                  }`}>
+                    {ACTION_LABEL[log.action] ?? log.action}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] font-semibold text-white">{log.userName ?? 'Alguien'}</span>
+                    {log.entityName && (
+                      <span className="text-[11px] text-pv-gray"> &ldquo;{log.entityName}&rdquo;</span>
+                    )}
+                  </div>
+                  <div className="text-[9px] text-pv-gray/60 flex-shrink-0">{timeAgo(log.createdAt)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Minutas panel */}
+        <MinutasPanel projectId={project.id} key={minutasKey} />
+      </div>
+
+      {/* CollaboratorProfileModal */}
+      <CollaboratorProfileModal
+        open={!!profileMember}
+        onClose={() => setProfileMember(null)}
+        member={profileMember}
+        deliverables={deliverables}
+        projectId={project.id}
+        projectTitle={project.title}
+        onUpdated={handleMemberUpdated}
+        onRemoved={handleMemberRemoved}
+      />
+
+      {/* PackageModal */}
+      <PackageModal
+        open={pkgModalOpen}
+        onClose={() => setPkgModalOpen(false)}
+        projectId={project.id}
+        deliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
+        editingPackage={editingPackage}
+        onSaved={handlePackageSaved}
+        onDeleted={handlePackageDeleted}
+      />
+    </div>
+  )
+}

@@ -2,63 +2,51 @@
 
 import { useCallback } from 'react'
 import { useAgentContext } from '@/lib/context/AgentContext'
-import { useProjectContext } from '@/lib/context/ProjectContext'
-import { AGENT_RESPONSES } from '@/lib/data/agent-responses'
-import type { Deliverable } from '@/lib/types'
+import { AgentPrompt, MinutaPlan } from '@/lib/agent-prompts'
 
 export function useAgent(projectId: string) {
   const { addMessage, setTyping, setProcessing } = useAgentContext()
-  const { addDeliverable, getProject } = useProjectContext()
 
-  const addTaskFromAgent = useCallback((name: string, status: Deliverable['status']) => {
-    const project = getProject(projectId)
-    const owner = project?.members[0] ?? 'jorge'
-    addDeliverable(projectId, {
-      id: `t${Date.now()}`,
-      status,
-      name,
-      meta: 'minuta',
-      owner,
-      priority: 'media',
-      startDate: '',
-      dueDate: '',
-      notes: 'Detectado en instrucción manual.',
-    })
-  }, [projectId, getProject, addDeliverable])
-
-  const askAgent = useCallback((type: 'riesgos' | 'cobro' | 'tiempo') => {
+  const askAgent = useCallback(async (agentPrompt: AgentPrompt) => {
+    const prompt = agentPrompt.prompt
+    addMessage(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
     setTyping(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, message: prompt, type: agentPrompt.id }),
+      })
+      const data = await res.json()
+      addMessage(data.html ?? '<span class="warn">Sin respuesta del agente.</span>')
+    } catch {
+      addMessage('<span class="danger">Error al conectar con el agente.</span>')
+    } finally {
       setTyping(false)
-      addMessage(AGENT_RESPONSES[type]?.[projectId] ?? 'Procesando...')
-    }, 1400)
-  }, [projectId, setTyping, addMessage])
+    }
+  }, [projectId, addMessage, setTyping])
 
-  const sendFree = useCallback((text: string, files: string[]) => {
+  const sendFree = useCallback(async (text: string, files: string[]) => {
     let msgHtml = `<strong>Tú:</strong> ${text || '(archivo adjunto)'}`
     if (files.length > 0) {
       msgHtml += `<div style="margin-top:4px;">${files.map(f => `<div class="msg-file">📎 ${f}</div>`).join('')}</div>`
     }
     addMessage(msgHtml, 'user')
     setTyping(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, message: text || '(archivo adjunto)', type: 'free' }),
+      })
+      const data = await res.json()
+      addMessage(data.html ?? '<span class="warn">Sin respuesta del agente.</span>')
+    } catch {
+      addMessage('<span class="danger">Error al conectar con el agente.</span>')
+    } finally {
       setTyping(false)
-      const lower = text.toLowerCase()
-      let resp: string
-      if (lower.includes('fachada') || lower.includes('acabado')) {
-        resp = '<strong>✦ Cambio registrado:</strong> Cliente aprobó cambio en fachada. <span class="nl">Agregué 1 pendiente</span>: actualizar especificaciones de fachada.'
-        addTaskFromAgent('Actualización especificaciones de fachada', 'warn')
-      } else if (lower.includes('aprobó') || lower.includes('autorizó')) {
-        resp = '<strong>✦ Aprobación registrada:</strong> Marcando entregables relacionados.'
-      } else if (lower.includes('cobr') || lower.includes('exhibición')) {
-        resp = AGENT_RESPONSES.cobro[projectId] ?? 'Procesando...'
-      } else {
-        const project = getProject(projectId)
-        resp = `<strong>Instrucción recibida:</strong> Registré en <span class="nl">${project?.title ?? projectId}</span>. Si hay acuerdos específicos, dímelos.`
-      }
-      addMessage(resp)
-    }, 1800)
-  }, [projectId, addMessage, setTyping, addTaskFromAgent, getProject])
+    }
+  }, [projectId, addMessage, setTyping])
 
   const generateDoc = useCallback(() => {
     setProcessing('Leyendo planos y cuadro de áreas...')
@@ -71,26 +59,27 @@ export function useAgent(projectId: string) {
     }, 1000)
   }, [setProcessing, addMessage])
 
-  const processMinuta = useCallback((text: string, onDone: () => void) => {
+  const processMinuta = useCallback(async (text: string, onDone: (plan?: MinutaPlan) => void) => {
     setProcessing('Analizando acuerdos...')
-    setTimeout(() => {
-      setProcessing('Identificando entregables afectados...')
-      setTimeout(() => {
-        setProcessing('Actualizando pendientes...')
-        setTimeout(() => {
-          setProcessing(false)
-          const hasCocina = text.toLowerCase().includes('cocina')
-          const hasBano = text.toLowerCase().includes('baño')
-          let count = 0
-          if (hasCocina) { addTaskFromAgent('Actualización planos cocina', 'warn'); count++ }
-          if (hasBano)   { addTaskFromAgent('Plano de baño adicional', 'warn'); count++ }
-          if (!hasCocina && !hasBano) { addTaskFromAgent('Pendiente detectado en minuta', 'warn'); count++ }
-          addMessage(`<strong>✦ Minuta procesada:</strong> Encontré <span class="nl">${count + 1} acuerdo(s)</span>. Agregué ${count + 1} pendiente(s).`)
-          onDone()
-        }, 900)
-      }, 900)
-    }, 900)
-  }, [setProcessing, addTaskFromAgent, addMessage])
+    try {
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, message: text, type: 'minuta' }),
+      })
+      const data = await res.json()
+      setProcessing(false)
+      const plan = data.plan as MinutaPlan | undefined
+      if (plan?.summary) {
+        addMessage(`<strong>✦ Minuta analizada:</strong> ${plan.summary}`)
+      }
+      onDone(plan)
+    } catch {
+      setProcessing(false)
+      addMessage('<span class="danger">Error al procesar la minuta.</span>')
+      onDone()
+    }
+  }, [projectId, setProcessing, addMessage])
 
   return { askAgent, sendFree, generateDoc, processMinuta }
 }

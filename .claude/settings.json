@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/mnt/c/Users/age_a/Documentos/Proyectos/PRODProyectovivo/pvai-next/.claude/hooks/block-env-secrets.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

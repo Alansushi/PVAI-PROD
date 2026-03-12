@@ -6,28 +6,20 @@ import { useAgent } from '@/lib/hooks/useAgent'
 import AgentMessages from '@/components/agent/AgentMessages'
 import TypingIndicator from '@/components/agent/TypingIndicator'
 import QuickChips from '@/components/agent/QuickChips'
-import FileAttach from '@/components/agent/FileAttach'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
+import DBMinutaModal from '@/components/dashboard/DBMinutaModal'
 
 export default function AgentPanel() {
   const params = useParams()
   const projectId = (params?.projectId as string) ?? 'pedregal'
-  const { isTyping, isProcessing, processingText, attachedFiles, clearFiles } = useAgentContext()
-  const { askAgent, sendFree, generateDoc } = useAgent(projectId)
-  const [input, setInput] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  function handleSend() {
-    if (!input.trim() && attachedFiles.length === 0) return
-    sendFree(input, attachedFiles)
-    clearFiles()
-    setInput('')
-  }
+  const { isTyping, isProcessing, processingText } = useAgentContext()
+  const { askAgent } = useAgent(projectId)
+  const [minutaOpen, setMinutaOpen] = useState(false)
 
   return (
     <div
       className="border-l border-white/[0.06] flex flex-col overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))' }}
+      style={{ background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))', position: 'fixed', right: 0, top: 57, bottom: 0, width: 295 }}
     >
       {/* Header */}
       <div className="px-3.5 py-3 border-b border-pv-accent/15 flex items-center gap-1.5 flex-shrink-0">
@@ -50,37 +42,20 @@ export default function AgentPanel() {
         </div>
       )}
 
-      {/* Input Area */}
+      {/* Chips */}
       <div className="flex-shrink-0 border-t border-white/[0.07]">
         <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-purple px-3.5 pt-2.5 pb-1">
-          ✦ Escribe o elige una acción
+          ✦ Elige una acción
         </div>
-        <QuickChips onAsk={askAgent} onGenerate={generateDoc} />
-        <FileAttach />
-        <div className="flex gap-1.5 px-2.5 pb-3 pt-1.5">
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="bg-white/[0.06] border border-white/10 rounded-lg p-2 cursor-pointer transition-all hover:bg-pv-accent/15 hover:border-pv-accent/40 hover:text-pv-accent text-pv-gray flex items-center justify-center flex-shrink-0"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-            </svg>
-          </button>
-          <input
-            className="flex-1 bg-white/[0.05] border border-white/[0.12] rounded-lg px-2.5 py-1.5 text-[11px] text-pv-white font-mono outline-none transition-colors focus:border-pv-purple/50 focus:bg-pv-purple/7 placeholder:text-pv-gray"
-            placeholder='"El cliente aprobó cambiar fachada..."'
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-          />
-          <button
-            onClick={handleSend}
-            className="bg-pv-purple border-none rounded-lg px-3 py-1.5 cursor-pointer text-sm text-white transition-all hover:bg-[#9070D4] flex-shrink-0"
-          >
-            ↑
-          </button>
-        </div>
+        <QuickChips onAsk={askAgent} onMinuta={() => setMinutaOpen(true)} />
       </div>
+
+      {/* Minuta Modal */}
+      <DBMinutaModal
+        open={minutaOpen}
+        onClose={() => setMinutaOpen(false)}
+        projectId={projectId}
+      />
     </div>
   )
 }
