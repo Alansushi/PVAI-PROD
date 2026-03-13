@@ -6,15 +6,40 @@ import { useAgent } from '@/lib/hooks/useAgent'
 import AgentMessages from '@/components/agent/AgentMessages'
 import TypingIndicator from '@/components/agent/TypingIndicator'
 import QuickChips from '@/components/agent/QuickChips'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DBMinutaModal from '@/components/dashboard/DBMinutaModal'
+
+function formatRelativeTime(createdAt: string): string {
+  const diff = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000)
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`
+  return `hace ${Math.floor(diff / 86400)} días`
+}
 
 export default function AgentPanel() {
   const params = useParams()
   const projectId = (params?.projectId as string) ?? 'pedregal'
-  const { isTyping, isProcessing, processingText } = useAgentContext()
+  const { messages, isTyping, isProcessing, processingText, initMessages } = useAgentContext()
   const { askAgent } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
+
+  useEffect(() => {
+    if (messages.length > 0) return // don't overwrite active session
+    fetch(`/api/projects/${projectId}/agent-messages`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.messages?.length) return
+        const formatted = data.messages.map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+          id: m.id,
+          role: m.role as 'agent' | 'user',
+          html: m.content,
+          time: formatRelativeTime(m.createdAt),
+        }))
+        initMessages(formatted)
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
 
   return (
     <div

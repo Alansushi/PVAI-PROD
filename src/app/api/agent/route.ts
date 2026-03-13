@@ -21,6 +21,29 @@ Reglas:
 - Usa <br> para separar párrafos
 - Basa tu análisis en los datos reales del proyecto que se te proporcionan`
 
+function escapeForPrompt(str: string): string {
+  return str
+    .replace(/\n/g, ' ')
+    .replace(/\|/g, '·')
+    .replace(/`/g, "'")
+    .slice(0, 120)
+}
+
+function validateMinutaPlan(plan: unknown): { summary: string; actions: unknown[] } {
+  if (!plan || typeof plan !== 'object') throw new Error('plan is not an object')
+  const p = plan as Record<string, unknown>
+  if (typeof p.summary !== 'string') throw new Error('missing summary')
+  if (!Array.isArray(p.actions)) throw new Error('actions is not array')
+  return {
+    summary: p.summary.slice(0, 500),
+    actions: (p.actions as unknown[])
+      .filter((a): a is Record<string, unknown> =>
+        !!a && typeof a === 'object' && ['update', 'note', 'create', 'reassign'].includes((a as Record<string, unknown>).type as string)
+      )
+      .slice(0, 15),
+  }
+}
+
 function buildProjectContext(project: {
   title: string
   type: string
@@ -47,17 +70,17 @@ function buildProjectContext(project: {
       ? d.dueDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
       : 'sin fecha'
     const statusLabel = d.status === 'ok' ? 'Completado' : d.status === 'warn' ? 'En proceso' : 'En riesgo'
-    return `- ${d.name} | ${statusLabel} | Prioridad: ${d.priority} | Responsable: ${d.ownerName ?? 'Sin asignar'} | Vence: ${due}`
+    return `- ${escapeForPrompt(d.name)} | ${statusLabel} | Prioridad: ${d.priority} | Responsable: ${d.ownerName ? escapeForPrompt(d.ownerName) : 'Sin asignar'} | Vence: ${due}`
   }).join('\n')
 
-  const memberLines = project.members.map(m => `- ${m.name} (${m.role})`).join('\n')
+  const memberLines = project.members.map(m => `- ${escapeForPrompt(m.name)} (${m.role})`).join('\n')
 
   const done  = project.deliverables.filter(d => d.status === 'ok').length
   const total = project.deliverables.length
   const atRisk = project.deliverables.filter(d => d.status === 'danger').length
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0
 
-  return `PROYECTO: ${project.title}
+  return `PROYECTO: ${escapeForPrompt(project.title)}
 Tipo: ${project.type}
 Estado general: ${statusLabel}
 Avance: ${pct}% (${done}/${total} entregables completados)
@@ -89,6 +112,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'projectId and message are required' }, { status: 400 })
   }
 
+  // S2: Server-side input length limit
+  if (message.length > 6000) {
+    return NextResponse.json({ error: 'La minuta excede 6000 caracteres. Por favor trunca el texto antes de enviarlo.' }, { status: 400 })
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ html: '<strong>⚠ Agente no configurado:</strong> Añade <span class="warn">ANTHROPIC_API_KEY</span> a tu archivo .env.local para activar el agente IA.' })
   }
@@ -118,6 +146,17 @@ export async function POST(req: NextRequest) {
   })
   if (recentCount >= 5) {
     return NextResponse.json({ error: 'Demasiadas solicitudes. Espera un momento.' }, { status: 429 })
+  }
+
+  // S3: Rate limit específico para minutas (3 por 5 minutos por proyecto)
+  if (type === 'minuta') {
+    const db = prisma as any
+    const recentMinutas = await db.agentMessage.count({
+      where: { projectId, role: 'user', createdAt: { gte: new Date(Date.now() - 5 * 60_000) } },
+    }).catch(() => 0)
+    if (recentMinutas >= 3) {
+      return NextResponse.json({ error: 'Máximo 3 minutas cada 5 minutos. Espera un momento.' }, { status: 429 })
+    }
   }
 
   // Verify access to the specific project (guests only see assigned projects)
@@ -160,16 +199,22 @@ export async function POST(req: NextRequest) {
   const model = isMinuta ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001'
 
   if (isMinuta) {
+    const today = new Date().toISOString().split('T')[0]
+
     const deliverableLines = project.deliverables.map(d => {
       const statusLabel = d.status === 'ok' ? 'ok' : d.status === 'warn' ? 'warn' : 'danger'
-      return `${(d as { id: string } & typeof d).id} | ${d.name} | ${statusLabel} | ${d.priority} | ${d.ownerName ?? 'sin asignar'}`
+      const due = d.dueDate ? d.dueDate.toISOString().split('T')[0] : 'sin fecha'
+      return `${(d as { id: string } & typeof d).id} | ${escapeForPrompt(d.name)} | ${statusLabel} | ${d.priority} | ${d.ownerName ? escapeForPrompt(d.ownerName) : 'sin asignar'} | ${due}`
     }).join('\n')
 
-    const memberLines = project.members.map((m: { name: string; role: string }) => m.name).join(', ')
+    const memberLines = project.members.map((m: { name: string; role: string }) => escapeForPrompt(m.name)).join(', ')
 
     const minutaSystemPrompt = `Eres un asistente de gestión de proyectos. Analiza la minuta y genera un plan de acciones sobre entregables. Responde únicamente con JSON válido.`
 
-    const minutaUserPrompt = `ENTREGABLES EXISTENTES (id | nombre | status | prioridad | responsable):
+    const minutaUserPrompt = `FECHA ACTUAL: ${today}
+Si la minuta menciona fechas relativas (próximo lunes, fin de mes, etc.), resuélvelas a formato YYYY-MM-DD basándote en la fecha actual.
+
+ENTREGABLES EXISTENTES (id | nombre | status_actual | prioridad | responsable | vencimiento):
 ${deliverableLines || '(sin entregables)'}
 
 MIEMBROS DEL EQUIPO: ${memberLines || '(sin miembros)'}
@@ -183,13 +228,15 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
   "actions": [
     {"type":"update","id":"abc","name":"Nombre entregable","changes":{"status":"ok","dueDate":"2026-04-15"},"reason":"La minuta indica que fue aprobado"},
     {"type":"note","id":"xyz","name":"Nombre entregable","note":"Cliente pidió revisar el material antes del viernes"},
-    {"type":"create","name":"Gestionar permiso municipal","status":"warn","priority":"alta","ownerName":"Juan García","dueDate":"2026-04-20","startDate":"2026-04-10"}
+    {"type":"create","name":"Gestionar permiso municipal","status":"warn","priority":"alta","ownerName":"Juan García","dueDate":"2026-04-20","startDate":"2026-04-10"},
+    {"type":"reassign","id":"abc","name":"Nombre entregable","ownerName":"Juan García","reason":"La minuta lo designa como nuevo responsable"}
   ]
 }
 
 Reglas estrictas:
 - Prefiere "update" sobre "create" si hay un entregable con nombre similar (matching flexible)
 - Usa "note" cuando la minuta menciona anotar, registrar o recordar algo internamente
+- Usa "reassign" cuando la minuta cambia el responsable de un entregable sin cambiar su estado
 - Usa "create" solo para temas sin equivalente existente
 - Si un entregable cambia de estado o fecha, usa "update"
 - No inventes entregables que no estén en la minuta
@@ -197,12 +244,14 @@ Reglas estrictas:
 - Para priority usa ÚNICAMENTE: "alta", "media", "baja"
 - Para ownerName usa exactamente el nombre del miembro del equipo si la minuta lo menciona; omite el campo si no hay responsable claro
 - Para dueDate y startDate usa formato ISO YYYY-MM-DD si la minuta menciona fechas; omite si no hay fecha
+- Si la minuta no contiene acuerdos claros sobre entregables, devuelve actions: [] y explica en summary por qué no hay acciones aplicables
+- Máximo 12 acciones por minuta. Si hay más, prioriza las de mayor impacto
 - Responde solo JSON, sin explicaciones`
 
     try {
       const response = await client.messages.create({
         model,
-        max_tokens: 800,
+        max_tokens: 1200,
         system: minutaSystemPrompt,
         messages: [{ role: 'user', content: minutaUserPrompt }],
       })
@@ -212,7 +261,8 @@ Reglas estrictas:
         // Extract first JSON object — handles markdown code fences and leading text
         const match = rawText.match(/\{[\s\S]*\}/)
         if (!match) throw new Error('No JSON found')
-        const plan = JSON.parse(match[0])
+        const rawPlan = JSON.parse(match[0])
+        const plan = validateMinutaPlan(rawPlan)
         return NextResponse.json({ plan })
       } catch {
         return NextResponse.json({ plan: { summary: 'No se pudo interpretar la minuta.', actions: [] } })
@@ -237,6 +287,16 @@ Reglas estrictas:
     })
 
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+
+    // Persist conversation to DB
+    const db = prisma as any
+    await db.agentMessage.createMany({
+      data: [
+        { projectId, userId: session.user.id, role: 'user', content: message },
+        { projectId, userId: session.user.id, role: 'agent', content: rawText },
+      ],
+    }).catch(() => {}) // non-blocking — don't fail the response if DB write fails
+
     return NextResponse.json({ html: rawText })
   } catch (err) {
     console.error('Agent API error:', err)

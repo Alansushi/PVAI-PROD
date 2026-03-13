@@ -7,6 +7,7 @@ import type { DBProcessedMinutaListItem } from '@/lib/db-types'
 const db = prisma as any
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -49,9 +50,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }))
 
   return NextResponse.json(items)
+  } catch (err) {
+    console.error('[minutas GET] Error:', err)
+    return NextResponse.json([], { status: 200 })
+  }
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -84,4 +90,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   return NextResponse.json(minuta, { status: 201 })
+  } catch (err) {
+    console.error('[minutas POST] Error:', err)
+    return NextResponse.json({ error: 'Error al guardar minuta' }, { status: 500 })
+  }
 }

@@ -15,7 +15,7 @@ interface AgentContextValue {
   addFile: (name: string) => void
   removeFile: (i: number) => void
   clearFiles: () => void
-  initMessages: (msgs: { text: string; time: string }[]) => void
+  initMessages: (msgs: (AgentMessage | { text: string; time: string })[]) => void
 }
 
 const AgentContext = createContext<AgentContextValue | null>(null)
@@ -49,8 +49,11 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const removeFile = useCallback((i: number) => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i)), [])
   const clearFiles = useCallback(() => setAttachedFiles([]), [])
 
-  const initMessages = useCallback((msgs: { text: string; time: string }[]) => {
-    setMessages(msgs.map((m, i) => ({ id: `init${i}`, role: 'agent', html: m.text, time: m.time })))
+  const initMessages = useCallback((msgs: (AgentMessage | { text: string; time: string })[]) => {
+    setMessages(msgs.map((m, i) => {
+      if ('html' in m) return m as AgentMessage
+      return { id: `init${i}`, role: 'agent' as const, html: (m as { text: string; time: string }).text, time: m.time }
+    }))
   }, [])
 
   return (

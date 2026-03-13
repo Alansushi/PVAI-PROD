@@ -22,26 +22,32 @@ async function verifyProjectAccess(projectId: string, userId: string) {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { id } = await params
 
-  const project = await verifyProjectAccess(id, session.user.id)
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const project = await verifyProjectAccess(id, session.user.id)
+    if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const packages = await db.deliverablePackage.findMany({
-    where: { projectId: id },
-    include: {
-      milestones: { orderBy: { date: 'asc' } },
-      deliverables: { select: { id: true, name: true, status: true, dueDate: true } },
-    },
-    orderBy: { createdAt: 'asc' },
-  })
+    const packages = await db.deliverablePackage.findMany({
+      where: { projectId: id },
+      include: {
+        milestones: { orderBy: { date: 'asc' } },
+        deliverables: { select: { id: true, name: true, status: true, dueDate: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
 
-  return NextResponse.json(packages)
+    return NextResponse.json(packages)
+  } catch (err) {
+    console.error('[packages GET] Error:', err)
+    return NextResponse.json([], { status: 200 })
+  }
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -93,4 +99,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   return NextResponse.json(pkg, { status: 201 })
+  } catch (err) {
+    console.error('[packages POST] Error:', err)
+    return NextResponse.json({ error: 'Error al crear paquete' }, { status: 500 })
+  }
 }

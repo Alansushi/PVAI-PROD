@@ -74,9 +74,10 @@ export const PROMPT_CATEGORIES: Record<AgentPrompt['category'], string> = {
 
 // Minuta processing types
 export type MinutaAction =
-  | { type: 'update'; id: string; name: string; changes: { status?: string; priority?: string; dueDate?: string }; reason: string }
-  | { type: 'note';   id: string; name: string; note: string }
-  | { type: 'create'; name: string; status: string; priority: string; ownerName?: string; dueDate?: string; startDate?: string }
+  | { type: 'update';   id: string; name: string; changes: { status?: string; priority?: string; dueDate?: string }; reason: string; _invalid?: boolean; _reason?: string }
+  | { type: 'note';     id: string; name: string; note: string; _invalid?: boolean; _reason?: string }
+  | { type: 'create';   name: string; status: string; priority: string; ownerName?: string; dueDate?: string; startDate?: string }
+  | { type: 'reassign'; id: string; name: string; ownerName: string; reason: string; _invalid?: boolean; _reason?: string }
 
 export interface MinutaPlan {
   summary: string

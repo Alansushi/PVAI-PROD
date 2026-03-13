@@ -40,6 +40,7 @@ function actionDetail(action: MinutaAction): string {
       .join(', ')
   }
   if (action.type === 'note') return action.note
+  if (action.type === 'reassign') return `→ ${action.ownerName}`
   return `${action.status} · ${action.priority}`
 }
 

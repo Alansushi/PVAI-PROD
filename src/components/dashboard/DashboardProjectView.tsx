@@ -441,9 +441,9 @@ export default function DashboardProjectView({ project }: Props) {
 
       {/* Próxima pre-entrega */}
       {nextPreEntrega && (
-        <div className="bg-pv-amber/10 border border-pv-amber/25 rounded-xl px-4 py-3 flex items-start gap-4">
+        <div className="bg-pv-amber/[0.14] border border-pv-amber/50 rounded-xl px-4 py-3 flex items-start gap-4 shadow-[inset_3px_0_0_#E09B3D,0_4px_16px_rgba(224,155,61,0.14)]">
           <div className="flex-shrink-0 text-center">
-            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-amber/70 mb-0.5">Próxima pre-entrega</div>
+            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-amber mb-0.5">Próxima pre-entrega</div>
             <div className="font-display text-[18px] font-black text-pv-amber leading-none">
               {(toLocalDate(nextPreEntrega.milestone.date) ?? new Date(nextPreEntrega.milestone.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
             </div>
@@ -478,9 +478,9 @@ export default function DashboardProjectView({ project }: Props) {
 
       {/* Próxima entrega final */}
       {nextFinalEntrega && (
-        <div className="bg-pv-accent/10 border border-pv-accent/25 rounded-xl px-4 py-3 flex items-start gap-4">
+        <div className="bg-pv-accent/[0.14] border border-pv-accent/50 rounded-xl px-4 py-3 flex items-start gap-4 shadow-[inset_3px_0_0_#2E8FC0,0_4px_16px_rgba(46,143,192,0.14)]">
           <div className="flex-shrink-0 text-center">
-            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-accent/70 mb-0.5">Próxima entrega final</div>
+            <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-accent mb-0.5">Próxima entrega final</div>
             <div className="font-display text-[18px] font-black text-pv-accent leading-none">
               {(toLocalDate(nextFinalEntrega.milestone.date) ?? new Date(nextFinalEntrega.milestone.date)).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
             </div>
@@ -826,6 +826,7 @@ export default function DashboardProjectView({ project }: Props) {
         onClose={() => setMinutaOpen(false)}
         projectId={project.id}
         members={members}
+        deliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
         onApplied={() => {
           fetchDeliverables()
           fetchActivity()
