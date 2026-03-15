@@ -2,6 +2,7 @@ export type AgentPromptType =
   | 'riesgos' | 'avance' | 'tiempo'
   | 'siguiente_entrega' | 'estado_paquetes'
   | 'equipo' | 'sin_asignar'
+  | 'velocidad' | 'prediccion' | 'bloqueados' | 'resumen_ejecutivo'
 
 export interface AgentPrompt {
   id: AgentPromptType
@@ -63,6 +64,35 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
     prompt: 'Lista todos los entregables que no tienen un responsable asignado.',
     category: 'equipo',
     icon: '🔍',
+  },
+  // Análisis avanzado
+  {
+    id: 'velocidad',
+    label: '¿A qué velocidad vamos?',
+    prompt: 'Analiza cuántos entregables se completaron esta semana vs la semana pasada. ¿El equipo está acelerando o desacelerando? Da una conclusión concreta.',
+    category: 'analisis',
+    icon: '⚡',
+  },
+  {
+    id: 'prediccion',
+    label: '¿Cuándo terminaremos?',
+    prompt: 'Con base en la velocidad actual de avance y los entregables pendientes, proyecta cuándo se terminará el proyecto. ¿Llegamos al deadline?',
+    category: 'analisis',
+    icon: '🔮',
+  },
+  {
+    id: 'bloqueados',
+    label: '¿Qué está bloqueado?',
+    prompt: 'Lista todos los entregables en warn o danger con fecha de vencimiento en los próximos 7 días. ¿Qué está detenido y por qué?',
+    category: 'analisis',
+    icon: '🚧',
+  },
+  {
+    id: 'resumen_ejecutivo',
+    label: 'Resumen para cliente',
+    prompt: 'Escribe un párrafo ejecutivo del estado actual del proyecto, apto para enviar a un cliente. Tono profesional, sin jerga técnica. Incluye: avance general, logros recientes, próximos hitos y cualquier riesgo importante.',
+    category: 'analisis',
+    icon: '📋',
   },
 ]
 

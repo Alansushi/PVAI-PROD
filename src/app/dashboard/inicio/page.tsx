@@ -43,6 +43,8 @@ type Project = {
   status: string
   nextPaymentAmount: string | null
   nextPaymentStatus: string | null
+  budget: number | null
+  billedAmount: number | null
   deliverables: Deliverable[]
   members: Member[]
 }
@@ -74,9 +76,10 @@ function InicioSkeleton() {
           </div>
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
             <div className="grid px-4 py-2 border-b border-white/[0.07] gap-2"
-              style={{ gridTemplateColumns: '1fr 80px 110px 110px 32px' }}>
+              style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}>
               <div className="h-2 w-16 bg-white/[0.06] rounded animate-pulse" />
               <div className="h-2 w-14 bg-white/[0.06] rounded animate-pulse ml-auto" />
+              <div className="h-2 w-16 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div className="h-2 w-12 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div className="h-2 w-14 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div />
@@ -84,7 +87,7 @@ function InicioSkeleton() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i}
                 className={`grid items-center gap-2.5 px-4 py-3 ${i < 3 ? 'border-b border-white/[0.05]' : ''}`}
-                style={{ gridTemplateColumns: '1fr 80px 110px 110px 32px' }}>
+                style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-white/[0.06] animate-pulse flex-shrink-0" />
                   <div className="flex flex-col gap-1">
@@ -95,6 +98,10 @@ function InicioSkeleton() {
                 <div className="flex flex-col gap-1 items-end">
                   <div className="h-2.5 w-8 bg-white/[0.06] rounded animate-pulse" />
                   <div className="h-1 w-16 bg-white/[0.06] rounded-full animate-pulse" />
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                  <div className="h-2.5 w-16 bg-white/[0.06] rounded animate-pulse" />
+                  <div className="h-1 w-14 bg-white/[0.06] rounded-full animate-pulse" />
                 </div>
                 <div className="flex flex-col gap-1 items-end">
                   <div className="h-2.5 w-16 bg-white/[0.06] rounded animate-pulse" />
@@ -283,10 +290,11 @@ export default function DashboardInicio() {
             <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
               <div
                 className="grid text-[9px] font-bold uppercase tracking-[0.5px] text-pv-gray px-4 py-2 border-b border-white/[0.07]"
-                style={{ gridTemplateColumns: '1fr 80px 110px 110px 32px' }}
+                style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}
               >
                 <span>Proyecto</span>
                 <span className="text-right">Entregables</span>
+                <span className="text-right">Presupuesto</span>
                 <span className="text-right">Cobro</span>
                 <span className="text-right">Estado</span>
                 <span />
@@ -296,6 +304,12 @@ export default function DashboardInicio() {
                 const done  = p.deliverables.filter((d) => d.status === 'ok').length
                 const total = p.deliverables.length
                 const pct   = total > 0 ? Math.round((done / total) * 100) : 0
+                const overdueCount = p.deliverables.filter(
+                  (d) => d.status !== 'ok' && d.dueDate && new Date(d.dueDate) < today
+                ).length
+                const budgetPct = p.budget && p.billedAmount != null
+                  ? Math.min(100, Math.round((p.billedAmount / p.budget) * 100))
+                  : null
                 const isLast = i === projects.length - 1
                 return (
                   <Link
@@ -303,7 +317,7 @@ export default function DashboardInicio() {
                     href={`/dashboard/${p.id}`}
                     className={`grid items-center gap-2.5 px-4 py-3 no-underline text-pv-white transition-colors hover:bg-white/[0.03]
                       ${!isLast ? 'border-b border-white/[0.05]' : ''}`}
-                    style={{ gridTemplateColumns: '1fr 80px 110px 110px 32px' }}
+                    style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[p.status] ?? 'bg-pv-gray'}`} />
@@ -320,6 +334,35 @@ export default function DashboardInicio() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
+                      {overdueCount > 0 && (
+                        <div className="text-[9px] text-[#D94F4F] mt-1 font-medium">
+                          {overdueCount} vencida{overdueCount !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {p.budget != null ? (
+                        <>
+                          <div className="text-[11px] font-medium text-white">
+                            ${p.budget.toLocaleString('es-MX')}
+                          </div>
+                          {budgetPct != null && (
+                            <div className="h-1 bg-white/10 rounded-full overflow-hidden mt-1">
+                              <div
+                                className={`h-full rounded-full ${budgetPct >= 90 ? 'bg-[#D94F4F]' : budgetPct >= 70 ? 'bg-[#E09B3D]' : 'bg-[#2A9B6F]'}`}
+                                style={{ width: `${budgetPct}%` }}
+                              />
+                            </div>
+                          )}
+                          {p.billedAmount != null && (
+                            <div className="text-[9px] text-pv-gray mt-0.5">
+                              facturado ${p.billedAmount.toLocaleString('es-MX')}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-[10px] text-pv-gray/40">—</div>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] font-medium text-[#2A9B6F]">{p.nextPaymentAmount ?? '—'}</div>

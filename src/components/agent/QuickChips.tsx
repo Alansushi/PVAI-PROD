@@ -29,13 +29,7 @@ export default function QuickChips({ onAsk, onMinuta }: Props) {
           </div>
         </div>
       ))}
-      <button
-        onClick={onMinuta}
-        className="px-2.5 py-1.5 rounded-md text-[10.5px] font-medium cursor-pointer transition-all text-left border font-sans
-          bg-pv-accent/10 border-pv-accent/25 text-pv-accent hover:bg-pv-accent/20"
-      >
-        ✦ Minuta
-      </button>
+      
     </div>
   )
 }

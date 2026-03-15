@@ -74,6 +74,8 @@ model Project {
   endDate           DateTime?
   nextPaymentAmount String?
   nextPaymentStatus String?
+  budget            Float?
+  billedAmount      Float?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

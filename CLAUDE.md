@@ -28,14 +28,37 @@
 - Fuentes: DM Sans (body), `font-display` = Playfair Display
 
 ## API Routes existentes
-- `GET/POST /api/projects` — lista + crear proyectos
+- `GET/POST /api/projects` — lista + crear proyectos (`budget`, `billedAmount` soportados)
 - `GET/PUT/DELETE /api/projects/[id]`
 - `GET/POST /api/projects/[id]/deliverables`
 - `PUT/DELETE /api/projects/[id]/deliverables/[deliverableId]`
 - `GET/POST /api/projects/[id]/members`
+- `GET/POST /api/projects/[id]/minutas`
+- `GET/PUT/DELETE /api/projects/[id]/minutas/[minutaId]`
+- `GET/POST /api/projects/[id]/packages`
+- `PUT/DELETE /api/projects/[id]/packages/[packageId]`
+- `GET /api/projects/[id]/activity` — audit log del proyecto
+- `GET/POST /api/projects/[id]/notes`
+- `POST /api/agent` — IA (quick questions + minuta processing)
+- `GET/POST /api/notifications` — notificaciones in-app
+- `POST /api/cron/daily-alerts` — alertas email de entregables vencidos (cron diario 9am UTC)
 
 ## Patrones de componentes
 - Modales: `Dialog` de `@/components/ui/dialog`
 - `Input`, `Textarea`, `Select` de `@/components/ui`
 - Refrescar server components tras mutaciones: `router.refresh()` de `useRouter`
 - Extraer client buttons de pages server: crear `*Button.tsx` o `*Client.tsx` aparte
+
+## Automatización implementada (FASE 1)
+- `src/app/api/cron/daily-alerts/route.ts` — Cron de alertas vencidas (email + notif in-app)
+- `vercel.json` — Cron configurado a las 9am UTC; requiere `CRON_SECRET` en env
+- Quick chips IA: `velocidad`, `prediccion`, `bloqueados`, `resumen_ejecutivo` en `src/lib/agent-prompts.ts`
+- Campos `budget` y `billedAmount` en `Project` (schema + db-types + API)
+- Schedule variance: contador "X vencidas" por proyecto en `/dashboard/inicio`
+- Ver `ROADMAP.md` para el plan completo y estado de cada fase
+
+## Pendientes de DB (ejecutar con DATABASE_URL configurado)
+```bash
+npx prisma migrate dev --name budget-fields   # agrega budget + billedAmount a Project
+npx prisma generate                            # actualiza el cliente Prisma
+```

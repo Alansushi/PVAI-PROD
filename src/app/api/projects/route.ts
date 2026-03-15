@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { title, type, status, startDate, endDate, nextPaymentAmount, nextPaymentStatus } = body
+  const { title, type, status, startDate, endDate, nextPaymentAmount, nextPaymentStatus, budget, billedAmount } = body
 
   if (!title || !type) {
     return NextResponse.json({ error: 'title and type are required' }, { status: 400 })
@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
       endDate: endDate ? new Date(endDate) : undefined,
       nextPaymentAmount,
       nextPaymentStatus,
+      budget: budget != null ? Number(budget) : undefined,
+      billedAmount: billedAmount != null ? Number(billedAmount) : undefined,
     },
   })
 

@@ -59,6 +59,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       nextPaymentAmount: body.nextPaymentAmount ?? undefined,
       nextPaymentStatus: body.nextPaymentStatus ?? undefined,
+      budget: body.budget != null ? Number(body.budget) : undefined,
+      billedAmount: body.billedAmount != null ? Number(body.billedAmount) : undefined,
     },
   })
 

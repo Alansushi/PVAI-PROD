@@ -8,7 +8,7 @@ import type { MinutaAction } from '@/lib/agent-prompts'
 const db = prisma as any
 
 interface Props {
-  params: { projectId: string; minutaId: string }
+  params: Promise<{ projectId: string; minutaId: string }>
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -44,7 +44,8 @@ function actionDetail(action: MinutaAction): string {
   return `${action.status} · ${action.priority}`
 }
 
-export default async function MinutaDetailPage({ params }: Props) {
+export default async function MinutaDetailPage({ params: paramsPromise }: Props) {
+  const params = await paramsPromise
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 

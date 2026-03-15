@@ -37,6 +37,8 @@ export interface DBProject {
   endDate: Date | null
   nextPaymentAmount: string | null
   nextPaymentStatus: string | null
+  budget: number | null
+  billedAmount: number | null
   createdAt: Date
   updatedAt: Date
 }
