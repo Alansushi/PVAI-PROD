@@ -3,6 +3,8 @@ export type AgentPromptType =
   | 'siguiente_entrega' | 'estado_paquetes'
   | 'equipo' | 'sin_asignar'
   | 'velocidad' | 'prediccion' | 'bloqueados' | 'resumen_ejecutivo'
+  | 'sugerir_riesgos' | 'reporte_semanal'
+  | 'balancear_carga'
 
 export interface AgentPrompt {
   id: AgentPromptType
@@ -93,6 +95,27 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
     prompt: 'Escribe un párrafo ejecutivo del estado actual del proyecto, apto para enviar a un cliente. Tono profesional, sin jerga técnica. Incluye: avance general, logros recientes, próximos hitos y cualquier riesgo importante.',
     category: 'analisis',
     icon: '📋',
+  },
+  {
+    id: 'sugerir_riesgos',
+    label: 'Sugerir riesgos del proyecto',
+    prompt: 'Analiza los entregables en riesgo (warn/danger) y el estado general del proyecto. Sugiere entre 3 y 5 riesgos concretos que debería registrarse en el Risk Register, indicando: título, descripción breve, probabilidad (low/medium/high), impacto (low/medium/high) y una posible mitigación.',
+    category: 'analisis',
+    icon: '🛡',
+  },
+  {
+    id: 'reporte_semanal',
+    label: 'Reporte semanal IA',
+    prompt: 'REPORTE_SEMANAL',
+    category: 'analisis',
+    icon: '📄',
+  },
+  {
+    id: 'balancear_carga',
+    label: 'Balancea la carga',
+    prompt: 'Analiza la distribución de tareas entre los miembros del equipo. ¿Quién está sobrecargado (más de 4 tareas activas)? ¿Quién tiene capacidad disponible (0-1 tareas)? Sugiere 2-3 reasignaciones concretas de entregables que equilibren la carga, indicando quién cede qué tarea y a quién se la pasas. Considera también las fechas de vencimiento.',
+    category: 'equipo',
+    icon: '⚖',
   },
 ]
 

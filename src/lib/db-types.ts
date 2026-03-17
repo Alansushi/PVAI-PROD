@@ -145,8 +145,55 @@ export interface DBProcessedMinutaListItem {
   actionsCount: number
 }
 
+export interface DBProjectRisk {
+  id: string
+  projectId: string
+  title: string
+  description: string | null
+  probability: 'low' | 'medium' | 'high'
+  impact: 'low' | 'medium' | 'high'
+  status: 'open' | 'mitigated' | 'closed'
+  mitigation: string | null
+  ownerName: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DBProjectKPI {
+  id: string
+  projectId: string
+  title: string
+  target: number
+  current: number
+  unit: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DBVelocityWeek {
+  weekLabel: string
+  startDate: string
+  completed: number
+}
+
+export interface DBDeliverableDependency {
+  id: string
+  blockerId: string
+  blockedId: string
+  blocker?: { id: string; name: string; status: string }
+}
+
+export interface DBProcessedReport {
+  id: string
+  projectId: string
+  userId: string
+  content: string
+  generatedAt: string
+}
+
 export interface DBProjectWithRelations extends DBProject {
   deliverables: DBDeliverable[]
   members: DBProjectMember[]
   ganttRows: DBGanttRow[]
 }
+

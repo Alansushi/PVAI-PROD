@@ -45,6 +45,9 @@ type Project = {
   nextPaymentStatus: string | null
   budget: number | null
   billedAmount: number | null
+  openRisks: number
+  velocityThisWeek: number
+  velocityDelta: number
   deliverables: Deliverable[]
   members: Member[]
 }
@@ -76,18 +79,20 @@ function InicioSkeleton() {
           </div>
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
             <div className="grid px-4 py-2 border-b border-white/[0.07] gap-2"
-              style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}>
+              style={{ gridTemplateColumns: '1fr 90px 110px 100px 80px 90px 110px 32px' }}>
               <div className="h-2 w-16 bg-white/[0.06] rounded animate-pulse" />
               <div className="h-2 w-14 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div className="h-2 w-16 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div className="h-2 w-12 bg-white/[0.06] rounded animate-pulse ml-auto" />
+              <div className="h-2 w-12 bg-white/[0.06] rounded animate-pulse ml-auto" />
+              <div className="h-2 w-14 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div className="h-2 w-14 bg-white/[0.06] rounded animate-pulse ml-auto" />
               <div />
             </div>
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i}
                 className={`grid items-center gap-2.5 px-4 py-3 ${i < 3 ? 'border-b border-white/[0.05]' : ''}`}
-                style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}>
+                style={{ gridTemplateColumns: '1fr 90px 110px 100px 80px 90px 110px 32px' }}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-2 h-2 rounded-full bg-white/[0.06] animate-pulse flex-shrink-0" />
                   <div className="flex flex-col gap-1">
@@ -105,6 +110,11 @@ function InicioSkeleton() {
                 </div>
                 <div className="flex flex-col gap-1 items-end">
                   <div className="h-2.5 w-16 bg-white/[0.06] rounded animate-pulse" />
+                  <div className="h-2 w-12 bg-white/[0.06] rounded animate-pulse" />
+                </div>
+                <div className="h-2.5 w-12 bg-white/[0.06] rounded animate-pulse ml-auto" />
+                <div className="flex flex-col gap-1 items-end">
+                  <div className="h-2.5 w-10 bg-white/[0.06] rounded animate-pulse" />
                   <div className="h-2 w-12 bg-white/[0.06] rounded animate-pulse" />
                 </div>
                 <div className="h-4 w-20 bg-white/[0.06] rounded-full animate-pulse" />
@@ -206,7 +216,7 @@ export default function DashboardInicio() {
     <div className="p-5 flex flex-col gap-5">
       {/* Header */}
       <div>
-        <h1 className="font-display text-[18px] font-bold text-white">Vista del despacho</h1>
+        <h1 className="font-display text-[18px] font-bold text-white">Vista General</h1>
         <p className="text-[11px] text-pv-gray mt-0.5">
           {dateStr} · {orgName}
         </p>
@@ -290,12 +300,14 @@ export default function DashboardInicio() {
             <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
               <div
                 className="grid text-[9px] font-bold uppercase tracking-[0.5px] text-pv-gray px-4 py-2 border-b border-white/[0.07]"
-                style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}
+                style={{ gridTemplateColumns: '1fr 90px 110px 100px 80px 90px 110px 32px' }}
               >
                 <span>Proyecto</span>
                 <span className="text-right">Entregables</span>
                 <span className="text-right">Presupuesto</span>
                 <span className="text-right">Cobro</span>
+                <span className="text-right">Riesgos</span>
+                <span className="text-right">Velocidad</span>
                 <span className="text-right">Estado</span>
                 <span />
               </div>
@@ -317,7 +329,7 @@ export default function DashboardInicio() {
                     href={`/dashboard/${p.id}`}
                     className={`grid items-center gap-2.5 px-4 py-3 no-underline text-pv-white transition-colors hover:bg-white/[0.03]
                       ${!isLast ? 'border-b border-white/[0.05]' : ''}`}
-                    style={{ gridTemplateColumns: '1fr 90px 110px 100px 110px 32px' }}
+                    style={{ gridTemplateColumns: '1fr 90px 110px 100px 80px 90px 110px 32px' }}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[p.status] ?? 'bg-pv-gray'}`} />
@@ -367,6 +379,29 @@ export default function DashboardInicio() {
                     <div className="text-right">
                       <div className="text-[11px] font-medium text-[#2A9B6F]">{p.nextPaymentAmount ?? '—'}</div>
                       <div className="text-[9px] text-pv-gray">{p.nextPaymentStatus ?? ''}</div>
+                    </div>
+                    <div className="text-right">
+                      {p.openRisks === 0 ? (
+                        <div className="text-[11px] font-medium text-[#2A9B6F]">Ninguno</div>
+                      ) : p.openRisks <= 2 ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-[#E09B3D]/10 border-[#E09B3D]/30 text-[#E09B3D]">
+                          {p.openRisks} abierto{p.openRisks !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-[#D94F4F]/10 border-[#D94F4F]/30 text-[#D94F4F]">
+                          {p.openRisks} abiertos
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {p.velocityDelta > 0 ? (
+                        <div className="text-[11px] font-medium text-[#2A9B6F]">↑ +{p.velocityDelta}</div>
+                      ) : p.velocityDelta < 0 ? (
+                        <div className="text-[11px] font-medium text-[#D94F4F]">↓ {p.velocityDelta}</div>
+                      ) : (
+                        <div className="text-[11px] font-medium text-pv-gray">→ 0</div>
+                      )}
+                      <div className="text-[9px] text-pv-gray">{p.velocityThisWeek} tar/sem</div>
                     </div>
                     <div>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badge.bg} ${badge.border} ${badge.text} whitespace-nowrap`}>

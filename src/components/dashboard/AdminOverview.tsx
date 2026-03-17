@@ -31,7 +31,7 @@ export default function AdminOverview({ projects, activeProjectId }: AdminOvervi
     <section className="flex flex-col gap-3">
       {/* Header */}
       <div>
-        <h2 className="font-display text-[15px] font-bold text-white">Vista del despacho</h2>
+        <h2 className="font-display text-[15px] font-bold text-white">Vista General</h2>
         <p className="text-[11px] text-pv-gray mt-px">{total} proyectos · Resumen general</p>
       </div>
 

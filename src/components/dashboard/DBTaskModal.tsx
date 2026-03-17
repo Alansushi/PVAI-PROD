@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { DBDeliverable, DBProjectMember } from '@/lib/db-types'
+import type { DBDeliverable, DBProjectMember, DBDeliverableDependency } from '@/lib/db-types'
 import { toDateInput } from '@/lib/dates'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
   onSaved: (deliverable: DBDeliverable) => void
   onDeleted?: (id: string) => void
   members?: DBProjectMember[]
+  allDeliverables?: { id: string; name: string; status: string }[]
 }
 
 type Status = 'ok' | 'warn' | 'danger'
@@ -40,6 +41,7 @@ export default function DBTaskModal({
   onSaved,
   onDeleted,
   members = [],
+  allDeliverables = [],
 }: Props) {
   const isEditing = !!editingDeliverable
 
@@ -47,6 +49,9 @@ export default function DBTaskModal({
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [blockedBy, setBlockedBy] = useState<DBDeliverableDependency[]>([])
+  const [addingBlocker, setAddingBlocker] = useState('')
+  const [depLoading, setDepLoading] = useState(false)
   const [form, setForm] = useState({
     name: '',
     status: defaultStatus as Status,
@@ -90,6 +95,21 @@ export default function DBTaskModal({
       })
     }
   }, [editingDeliverable, defaultStatus, open])
+
+  // Fetch existing dependencies when editing
+  useEffect(() => {
+    if (open && editingDeliverable) {
+      setDepLoading(true)
+      fetch(`/api/projects/${projectId}/deliverables/${editingDeliverable.id}/dependencies`)
+        .then(r => r.ok ? r.json() : { blockedBy: [] })
+        .then(data => setBlockedBy(data.blockedBy ?? []))
+        .catch(() => setBlockedBy([]))
+        .finally(() => setDepLoading(false))
+    } else {
+      setBlockedBy([])
+      setAddingBlocker('')
+    }
+  }, [open, editingDeliverable, projectId])
 
   if (!open) return null
 
@@ -157,6 +177,32 @@ export default function DBTaskModal({
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleAddBlocker() {
+    if (!editingDeliverable || !addingBlocker) return
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/deliverables/${editingDeliverable.id}/dependencies`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blockerId: addingBlocker }) },
+      )
+      if (res.ok) {
+        const dep = await res.json()
+        setBlockedBy(prev => [...prev, dep])
+        setAddingBlocker('')
+      }
+    } catch { /* silent */ }
+  }
+
+  async function handleRemoveBlocker(blockerId: string) {
+    if (!editingDeliverable) return
+    try {
+      await fetch(
+        `/api/projects/${projectId}/deliverables/${editingDeliverable.id}/dependencies`,
+        { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blockerId }) },
+      )
+      setBlockedBy(prev => prev.filter(d => d.blockerId !== blockerId))
+    } catch { /* silent */ }
   }
 
   async function handleDelete() {
@@ -310,6 +356,66 @@ export default function DBTaskModal({
               className="w-full bg-white/[0.05] border border-white/[0.10] rounded-lg px-3 py-2 text-[12px] text-white placeholder:text-pv-gray/50 outline-none focus:border-pv-accent/50 transition-colors resize-none"
             />
           </div>
+
+          {/* Dependencies (only in edit mode) */}
+          {isEditing && (
+            <div>
+              <label className="text-[10px] text-pv-gray uppercase tracking-[0.5px] mb-1.5 block">
+                Bloqueado por
+              </label>
+              {depLoading ? (
+                <div className="h-6 bg-white/[0.04] rounded animate-pulse" />
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {blockedBy.map(dep => (
+                    <div key={dep.blockerId} className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-2.5 py-1.5">
+                      {dep.blocker?.status === 'danger' && (
+                        <span className="text-pv-red text-[11px]">⚠</span>
+                      )}
+                      <span className={`text-[11px] flex-1 truncate ${dep.blocker?.status === 'danger' ? 'text-pv-red' : 'text-white/80'}`}>
+                        {dep.blocker?.name ?? dep.blockerId}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBlocker(dep.blockerId)}
+                        className="text-pv-gray/60 hover:text-pv-red text-[13px] leading-none transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {allDeliverables.filter(
+                    d => d.id !== editingDeliverable?.id && !blockedBy.some(b => b.blockerId === d.id)
+                  ).length > 0 && (
+                    <div className="flex gap-2">
+                      <select
+                        value={addingBlocker}
+                        onChange={e => setAddingBlocker(e.target.value)}
+                        className="flex-1 bg-[#0C1F35] border border-white/[0.10] rounded-lg px-2.5 py-1.5 text-[11px] text-white outline-none focus:border-pv-accent/50 transition-colors"
+                        style={{ colorScheme: 'dark' }}
+                      >
+                        <option value="">Agregar bloqueador…</option>
+                        {allDeliverables
+                          .filter(d => d.id !== editingDeliverable?.id && !blockedBy.some(b => b.blockerId === d.id))
+                          .map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                      </select>
+                      {addingBlocker && (
+                        <button
+                          type="button"
+                          onClick={handleAddBlocker}
+                          className="px-2.5 py-1.5 text-[11px] font-semibold text-pv-accent border border-pv-accent/30 rounded-lg hover:bg-pv-accent/10 transition-colors"
+                        >
+                          Agregar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Error */}
           {error && (

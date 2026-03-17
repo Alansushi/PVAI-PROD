@@ -30,6 +30,7 @@ export async function GET() {
             members: true,
             deliverables: { orderBy: { position: 'asc' } },
             ganttRows: { orderBy: { order: 'asc' } },
+            risks: { where: { status: 'open' }, select: { id: true } },
           },
           orderBy: { createdAt: 'desc' },
         })
@@ -40,6 +41,7 @@ export async function GET() {
           members: true,
           deliverables: { orderBy: { position: 'asc' } },
           ganttRows: { orderBy: { order: 'asc' } },
+          risks: { where: { status: 'open' }, select: { id: true } },
         },
         orderBy: { createdAt: 'desc' },
       })
@@ -50,10 +52,46 @@ export async function GET() {
   const allProjects = projectsList.flat()
   const projects = Array.from(new Map(allProjects.map(p => [p.id, p])).values())
 
+  // Bulk velocity query (last 2 weeks of deliverable completions)
+  const projectIds = projects.map(p => p.id)
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+  const oneWeekAgo  = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000)
+
+  const auditLogs = await prisma.auditLog.findMany({
+    where: {
+      projectId: { in: projectIds },
+      entity: 'deliverable',
+      action: 'update',
+      createdAt: { gte: twoWeeksAgo },
+    },
+    select: { projectId: true, createdAt: true, newValue: true },
+  })
+
+  const velocityMap = new Map<string, { thisWeek: number; lastWeek: number }>()
+  for (const log of auditLogs) {
+    if (!log.projectId) continue
+    const nv = log.newValue as Record<string, unknown> | null
+    if (!nv || nv['status'] !== 'ok') continue
+    const entry = velocityMap.get(log.projectId) ?? { thisWeek: 0, lastWeek: 0 }
+    if (log.createdAt >= oneWeekAgo) entry.thisWeek++
+    else entry.lastWeek++
+    velocityMap.set(log.projectId, entry)
+  }
+
+  const enriched = projects.map(p => {
+    const vel = velocityMap.get(p.id) ?? { thisWeek: 0, lastWeek: 0 }
+    return {
+      ...p,
+      openRisks: (p as any).risks?.length ?? 0,
+      velocityThisWeek: vel.thisWeek,
+      velocityDelta: vel.thisWeek - vel.lastWeek,
+    }
+  })
+
   // For display: prefer non-guest org name; fall back to first membership
   const primaryMembership = memberships.find(m => m.role !== 'guest') ?? memberships[0]
 
-  return NextResponse.json({ projects, orgName: primaryMembership.organization.name })
+  return NextResponse.json({ projects: enriched, orgName: primaryMembership.organization.name })
 }
 
 export async function POST(req: NextRequest) {

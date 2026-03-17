@@ -5,7 +5,7 @@ import { AgentProvider } from '@/lib/context/AgentContext'
 import { ProjectProvider } from '@/lib/context/ProjectContext'
 import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
-import AgentPanel from '@/components/layout/AgentPanel'
+import DashboardShell from '@/components/layout/DashboardShell'
 import DashboardFooter from '@/components/layout/DashboardFooter'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -49,14 +49,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <AgentProvider>
       <div className="min-h-screen bg-pv-navy flex flex-col">
         <DashboardNav session={session} orgName={primaryMembership.organization.name} />
-        <div
-          style={{ display: 'grid', gridTemplateColumns: '210px 1fr', marginRight: '295px' }}
-        >
-          <DashboardSidebar projects={projects} isOnlyGuest={isOnlyGuest} />
-          <main>{children}</main>
-        </div>
+        <DashboardShell sidebar={<DashboardSidebar projects={projects} isOnlyGuest={isOnlyGuest} />}>
+          {children}
+        </DashboardShell>
         <DashboardFooter />
-        <AgentPanel />
       </div>
     </AgentProvider>
     </ProjectProvider>

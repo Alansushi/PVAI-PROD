@@ -41,8 +41,8 @@ export default function DashboardSidebar({ projects, isOnlyGuest = false }: Prop
       >
         <span className="text-[14px] flex-shrink-0">🏢</span>
         <div>
-          <div className="text-xs font-semibold">Vista del despacho</div>
-          <div className="text-[10px] text-pv-gray">Director / Socios</div>
+          <div className="text-xs font-semibold">Vista General</div>
+          <div className="text-[10px] text-pv-gray">Resumen ejecutivo</div>
         </div>
       </Link>
 

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 interface AuditLogParams {
   userId: string
   action: 'create' | 'update' | 'delete'
-  entity: 'project' | 'deliverable' | 'member' | 'ganttRow' | 'organization'
+  entity: 'project' | 'deliverable' | 'member' | 'ganttRow' | 'organization' | 'risk' | 'kpi'
   entityId: string
   entityName?: string
   projectId?: string

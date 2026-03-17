@@ -88,6 +88,9 @@ model Project {
   notes          ProjectNote[]
   minutas        ProcessedMinuta[]
   packages       DeliverablePackage[]
+  risks          ProjectRisk[]
+  kpis           ProjectKPI[]
+  reports        ProcessedReport[]
 
   @@index([organizationId])
 }
@@ -137,11 +140,26 @@ model Deliverable {
   createdBy  User?               @relation("DeliverableCreatedBy", fields: [createdById], references: [id])
   updatedBy  User?               @relation("DeliverableUpdatedBy", fields: [updatedById], references: [id])
   auditLogs  AuditLog[]
+  blockedBy  DeliverableDependency[] @relation("DependencyBlocked")
+  blocks     DeliverableDependency[] @relation("DependencyBlocker")
 
   @@index([projectId])
   @@index([ownerId])
   @@index([dueDate])
   @@index([packageId])
+}
+
+model DeliverableDependency {
+  id        String @id @default(cuid())
+  blockerId String
+  blockedId String
+
+  blocker   Deliverable @relation("DependencyBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   Deliverable @relation("DependencyBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
 
 model GanttRow {
@@ -260,6 +278,51 @@ model ProcessedMinuta {
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+}
+
+model ProjectRisk {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  probability String   @default("medium")  // low | medium | high
+  impact      String   @default("medium")  // low | medium | high
+  status      String   @default("open")    // open | mitigated | closed
+  mitigation  String?
+  ownerName   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ProjectKPI {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  target    Float
+  current   Float    @default(0)
+  unit      String   @default("")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ProcessedReport {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  content     String   @db.Text
+  generatedAt DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
 }

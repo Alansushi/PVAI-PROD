@@ -49,6 +49,28 @@
 - Refrescar server components tras mutaciones: `router.refresh()` de `useRouter`
 - Extraer client buttons de pages server: crear `*Button.tsx` o `*Client.tsx` aparte
 
+## Flujo de trabajo por fase (OBLIGATORIO)
+
+### Al iniciar cualquier tarea de implementación
+- **Leer `ROADMAP.md` primero**, antes de proponer cualquier plan o tocar código
+- Identificar qué fases están completas, cuál es la siguiente pendiente y qué dependencias existen
+
+### Al proponer una nueva fase
+Generar siempre un plan con esta estructura antes de escribir código:
+1. **Contexto** — qué hay implementado que esta fase usa o extiende
+2. **Orden de implementación** — con rationale de por qué ese orden
+3. **Cambios de DB** — modelos nuevos, migraciones necesarias
+4. **Tabla de archivos** — separada en "Modificar" y "Crear", con razón por cada archivo
+5. **Comandos de migración** — exactos, en orden
+6. **Criterios de verificación** — cómo confirmar que cada sub-ítem funciona
+
+## Reglas de documentación (OBLIGATORIO — no esperar que el usuario lo pida)
+- **Actualizar `ROADMAP.md` siempre que:**
+  - Se proponga o diseñe una nueva fase → agregar sección con estado `🟠 PENDIENTE`
+  - Se complete una fase o sub-ítem → marcar `✅ COMPLETADA`, añadir detalles reales (modelos, rutas, componentes, migración aplicada)
+  - Actualizar la tabla de prioridades y criterios de verificación acordemente
+- Hacerlo como paso final natural de cada tarea de implementación, igual que correr `prisma generate`
+
 ## Automatización implementada (FASE 1)
 - `src/app/api/cron/daily-alerts/route.ts` — Cron de alertas vencidas (email + notif in-app)
 - `vercel.json` — Cron configurado a las 9am UTC; requiere `CRON_SECRET` en env
@@ -57,8 +79,4 @@
 - Schedule variance: contador "X vencidas" por proyecto en `/dashboard/inicio`
 - Ver `ROADMAP.md` para el plan completo y estado de cada fase
 
-## Pendientes de DB (ejecutar con DATABASE_URL configurado)
-```bash
-npx prisma migrate dev --name budget-fields   # agrega budget + billedAmount a Project
-npx prisma generate                            # actualiza el cliente Prisma
-```
+

@@ -196,7 +196,8 @@ export async function POST(req: NextRequest) {
   }
 
   const isMinuta = type === 'minuta'
-  const model = isMinuta ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001'
+  const isReporte = type === 'reporte_semanal'
+  const model = (isMinuta || isReporte) ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001'
 
   if (isMinuta) {
     const today = new Date().toISOString().split('T')[0]
@@ -270,6 +271,69 @@ Reglas estrictas:
     } catch (err) {
       console.error('Agent minuta error:', err)
       return NextResponse.json({ plan: { summary: 'Error al procesar la minuta.', actions: [] } })
+    }
+  }
+
+  if (isReporte) {
+    // Fetch project with risks and KPIs for enriched context
+    const db = prisma as any
+    const [risks, kpis] = await Promise.all([
+      db.projectRisk.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } }).catch(() => []),
+      db.projectKPI.findMany({ where: { projectId }, orderBy: { createdAt: 'asc' } }).catch(() => []),
+    ])
+
+    const riskLines = risks.length
+      ? risks.map((r: { title: string; probability: string; impact: string; status: string; mitigation: string | null }) =>
+          `- ${r.title} | Prob: ${r.probability} | Impacto: ${r.impact} | Estado: ${r.status}${r.mitigation ? ` | Mitigación: ${r.mitigation}` : ''}`
+        ).join('\n')
+      : '(sin riesgos registrados)'
+
+    const kpiLines = kpis.length
+      ? kpis.map((k: { title: string; current: number; target: number; unit: string }) => {
+          const pct = k.target > 0 ? Math.round((k.current / k.target) * 100) : 0
+          return `- ${k.title}: ${k.current}${k.unit ? ' ' + k.unit : ''} / ${k.target}${k.unit ? ' ' + k.unit : ''} (${pct}%)`
+        }).join('\n')
+      : '(sin KPIs registrados)'
+
+    const reportePrompt = `${buildProjectContext(project)}
+
+RIESGOS REGISTRADOS:
+${riskLines}
+
+KPIs DEL PROYECTO:
+${kpiLines}
+
+Genera un reporte semanal ejecutivo completo del proyecto. Estructura el reporte así:
+<strong>📊 Reporte Semanal — [nombre del proyecto]</strong><br>
+<strong>Resumen ejecutivo:</strong> [2-3 oraciones del estado general]<br><br>
+<strong>Avance:</strong> [% completado, tareas ok/total, ritmo]<br><br>
+<strong>Logros de la semana:</strong> [bullet points con entregables completados o avances clave]<br><br>
+<strong>Alertas y riesgos:</strong> [entregables en riesgo + riesgos del risk register relevantes]<br><br>
+<strong>KPIs:</strong> [estado de los KPIs con colores ok/warn/danger]<br><br>
+<strong>Próximos pasos:</strong> [3-5 acciones prioritarias para la próxima semana]<br><br>
+Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar información clave.`
+
+    try {
+      const response = await client.messages.create({
+        model,
+        max_tokens: 2000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: reportePrompt }],
+      })
+
+      const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+
+      // Persist report non-blocking
+      db.processedReport.create({
+        data: { projectId, userId: session.user.id, content: rawText },
+      }).catch(() => {})
+
+      return NextResponse.json({ html: rawText })
+    } catch (err) {
+      console.error('Agent reporte error:', err)
+      return NextResponse.json({
+        html: '<strong class="danger">✦ Error:</strong> No se pudo generar el reporte. Intenta de nuevo.',
+      })
     }
   }
 

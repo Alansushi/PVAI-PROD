@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage } from '@/lib/db-types'
+import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage, DBProjectRisk, DBProjectKPI, DBVelocityWeek } from '@/lib/db-types'
 import { PRIORITY_COLORS } from '@/lib/constants'
 import { toLocalDate } from '@/lib/dates'
 import DBTaskModal from './DBTaskModal'
@@ -13,6 +13,13 @@ import type { CalendarMilestone } from './ProjectCalendarWidget'
 import ProjectNotesWidget from './ProjectNotesWidget'
 import MinutasPanel from './MinutasPanel'
 import PackageModal from './PackageModal'
+import RiskModal from './RiskModal'
+import RisksPanel from './RisksPanel'
+import KPIModal from './KPIModal'
+import KPIsPanel from './KPIsPanel'
+import VelocityWidget from './VelocityWidget'
+import ReportModal from './ReportModal'
+import CapacityWidget from './CapacityWidget'
 
 type ProjectWithRelations = DBProjectWithRelations
 
@@ -116,6 +123,20 @@ export default function DashboardProjectView({ project }: Props) {
     ok: DEFAULT_SORT, warn: DEFAULT_SORT, danger: DEFAULT_SORT,
   })
 
+  // F2 state
+  const [risks, setRisks] = useState<DBProjectRisk[]>([])
+  const [risksLoading, setRisksLoading] = useState(true)
+  const [riskModalOpen, setRiskModalOpen] = useState(false)
+  const [editingRisk, setEditingRisk] = useState<DBProjectRisk | null>(null)
+  const [kpis, setKpis] = useState<DBProjectKPI[]>([])
+  const [kpisLoading, setKpisLoading] = useState(true)
+  const [kpiModalOpen, setKpiModalOpen] = useState(false)
+  const [editingKPI, setEditingKPI] = useState<DBProjectKPI | null>(null)
+  const [velocityWeeks, setVelocityWeeks] = useState<DBVelocityWeek[]>([])
+  const [velocityRequired, setVelocityRequired] = useState(0)
+  const [velocityLoading, setVelocityLoading] = useState(true)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
     fetch(`/api/projects/${project.id}/activity`)
@@ -141,10 +162,40 @@ export default function DashboardProjectView({ project }: Props) {
       .finally(() => setPackagesLoading(false))
   }, [project.id])
 
+  const fetchRisks = useCallback(() => {
+    setRisksLoading(true)
+    fetch(`/api/projects/${project.id}/risks`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setRisks)
+      .catch(() => {})
+      .finally(() => setRisksLoading(false))
+  }, [project.id])
+
+  const fetchKPIs = useCallback(() => {
+    setKpisLoading(true)
+    fetch(`/api/projects/${project.id}/kpis`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setKpis)
+      .catch(() => {})
+      .finally(() => setKpisLoading(false))
+  }, [project.id])
+
+  const fetchVelocity = useCallback(() => {
+    setVelocityLoading(true)
+    fetch(`/api/projects/${project.id}/activity?type=velocity`)
+      .then(r => r.ok ? r.json() : { weeks: [], requiredPerWeek: 0 })
+      .then(data => { setVelocityWeeks(data.weeks ?? []); setVelocityRequired(data.requiredPerWeek ?? 0) })
+      .catch(() => {})
+      .finally(() => setVelocityLoading(false))
+  }, [project.id])
+
   useEffect(() => {
     fetchActivity()
     fetchPackages()
-  }, [fetchActivity, fetchPackages])
+    fetchRisks()
+    fetchKPIs()
+    fetchVelocity()
+  }, [fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
 
   const visibleMembers = members.slice(0, MAX_VISIBLE)
   const overflow = members.length - MAX_VISIBLE
@@ -269,6 +320,14 @@ export default function DashboardProjectView({ project }: Props) {
     return upcoming[0] ?? null
   }, [packages])
 
+  // F3.3 — Predictive delay detection
+  const isPredictiveRisk = useMemo(() => {
+    if (!project.endDate || velocityRequired <= 0) return false
+    const lastTwo = velocityWeeks.slice(-2)
+    const velocidadActual = lastTwo.reduce((s, w) => s + w.completed, 0) / Math.max(lastTwo.length, 1)
+    return velocidadActual < velocityRequired * 0.8
+  }, [velocityWeeks, velocityRequired, project.endDate])
+
   // Milestone vertical lines for Gantt
   const milestoneOffsets = useMemo(() => {
     if (!baseDate || ganttRows.length === 0) return []
@@ -348,6 +407,30 @@ export default function DashboardProjectView({ project }: Props) {
     setPkgModalOpen(true)
   }
 
+  function handleRiskSaved(risk: DBProjectRisk) {
+    setRisks(prev => {
+      const idx = prev.findIndex(r => r.id === risk.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = risk; return next }
+      return [risk, ...prev]
+    })
+  }
+
+  function handleRiskDeleted(id: string) {
+    setRisks(prev => prev.filter(r => r.id !== id))
+  }
+
+  function handleKPISaved(kpi: DBProjectKPI) {
+    setKpis(prev => {
+      const idx = prev.findIndex(k => k.id === kpi.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = kpi; return next }
+      return [...prev, kpi]
+    })
+  }
+
+  function handleKPIDeleted(id: string) {
+    setKpis(prev => prev.filter(k => k.id !== id))
+  }
+
   return (
     <div className="p-5 flex flex-col gap-4">
       {/* Header */}
@@ -357,6 +440,22 @@ export default function DashboardProjectView({ project }: Props) {
           <div className="text-[11px] text-pv-gray mt-0.5">{project.type}</div>
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
+          {/* PDF download button */}
+          <a
+            href={`/api/projects/${project.id}/report-pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-pv-amber border border-pv-amber/30 rounded-lg hover:bg-pv-amber/10 transition-colors"
+          >
+            📥 PDF
+          </a>
+          {/* Reporte Semanal button */}
+          <button
+            onClick={() => setReportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-pv-green border border-pv-green/30 rounded-lg hover:bg-pv-green/10 transition-colors"
+          >
+            📄 Reporte
+          </button>
           {/* Minuta button */}
           <button
             onClick={() => setMinutaOpen(true)}
@@ -409,6 +508,11 @@ export default function DashboardProjectView({ project }: Props) {
             <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1 ${STATUS_DOT[project.status] ?? 'bg-pv-gray'}`} />
             {project.status === 'ok' ? 'Al corriente' : project.status === 'warn' ? 'En riesgo' : 'Crítico'}
           </div>
+          {isPredictiveRisk && (
+            <span className="px-2.5 py-1 rounded-full border text-[10px] font-bold bg-pv-red/10 border-pv-red/30 text-pv-red animate-pulse">
+              ⚠ Riesgo de delay
+            </span>
+          )}
         </div>
       </div>
 
@@ -810,6 +914,7 @@ export default function DashboardProjectView({ project }: Props) {
         onSaved={handleSaved}
         onDeleted={handleDeleted}
         members={members}
+        allDeliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
       />
 
       {/* InviteMemberModal */}
@@ -832,6 +937,28 @@ export default function DashboardProjectView({ project }: Props) {
           fetchActivity()
           setMinutasKey(k => k + 1)
         }}
+      />
+
+      {/* F2 Panels: KPIs + Velocity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        <KPIsPanel
+          kpis={kpis}
+          loading={kpisLoading}
+          onNew={() => { setEditingKPI(null); setKpiModalOpen(true) }}
+          onEdit={(kpi) => { setEditingKPI(kpi); setKpiModalOpen(true) }}
+        />
+        <VelocityWidget weeks={velocityWeeks} requiredPerWeek={velocityRequired} loading={velocityLoading} />
+      </div>
+
+      {/* F3.4 Capacity Widget */}
+      <CapacityWidget members={members} deliverables={deliverables} loading={false} />
+
+      {/* F2 Risk Register */}
+      <RisksPanel
+        risks={risks}
+        loading={risksLoading}
+        onNew={() => { setEditingRisk(null); setRiskModalOpen(true) }}
+        onEdit={(risk) => { setEditingRisk(risk); setRiskModalOpen(true) }}
       />
 
       {/* Activity + Minutas */}
@@ -901,6 +1028,34 @@ export default function DashboardProjectView({ project }: Props) {
         editingPackage={editingPackage}
         onSaved={handlePackageSaved}
         onDeleted={handlePackageDeleted}
+      />
+
+      {/* RiskModal */}
+      <RiskModal
+        open={riskModalOpen}
+        onClose={() => setRiskModalOpen(false)}
+        projectId={project.id}
+        editingRisk={editingRisk}
+        onSaved={handleRiskSaved}
+        onDeleted={handleRiskDeleted}
+      />
+
+      {/* KPIModal */}
+      <KPIModal
+        open={kpiModalOpen}
+        onClose={() => setKpiModalOpen(false)}
+        projectId={project.id}
+        editingKPI={editingKPI}
+        onSaved={handleKPISaved}
+        onDeleted={handleKPIDeleted}
+      />
+
+      {/* ReportModal */}
+      <ReportModal
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        projectId={project.id}
+        projectTitle={project.title}
       />
     </div>
   )
