@@ -2,12 +2,11 @@ import { AGENT_PROMPTS, PROMPT_CATEGORIES, AgentPrompt } from '@/lib/agent-promp
 
 interface Props {
   onAsk: (prompt: AgentPrompt) => void
-  onMinuta: () => void
 }
 
 const categories = ['analisis', 'paquetes', 'equipo'] as const
 
-export default function QuickChips({ onAsk, onMinuta }: Props) {
+export default function QuickChips({ onAsk }: Props) {
   return (
     <div className="flex flex-col gap-2 px-2.5 pb-2">
       {categories.map(cat => (

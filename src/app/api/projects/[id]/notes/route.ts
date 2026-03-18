@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
-export interface NoteTab {
+interface NoteTab {
   id: string
   title: string
   content: string

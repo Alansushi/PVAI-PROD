@@ -18,8 +18,8 @@ import RisksPanel from './RisksPanel'
 import KPIModal from './KPIModal'
 import KPIsPanel from './KPIsPanel'
 import VelocityWidget from './VelocityWidget'
-import ReportModal from './ReportModal'
 import CapacityWidget from './CapacityWidget'
+import ProjectEditModal from './ProjectEditModal'
 
 type ProjectWithRelations = DBProjectWithRelations
 
@@ -103,9 +103,10 @@ function timeAgo(date: Date): string {
   return `hace ${Math.floor(diff / 86400)} días`
 }
 
-export default function DashboardProjectView({ project }: Props) {
-  const [deliverables, setDeliverables] = useState<DBDeliverable[]>(project.deliverables)
-  const [members, setMembers] = useState<DBProjectMember[]>(project.members as DBProjectMember[])
+export default function DashboardProjectView({ project: projectProp }: Props) {
+  const [project, setProject] = useState<ProjectWithRelations>(projectProp)
+  const [deliverables, setDeliverables] = useState<DBDeliverable[]>(projectProp.deliverables)
+  const [members, setMembers] = useState<DBProjectMember[]>(projectProp.members as DBProjectMember[])
   const [packages, setPackages] = useState<DBDeliverablePackage[]>([])
   const [packagesLoading, setPackagesLoading] = useState(true)
   const [activityLoading, setActivityLoading] = useState(true)
@@ -135,7 +136,7 @@ export default function DashboardProjectView({ project }: Props) {
   const [velocityWeeks, setVelocityWeeks] = useState<DBVelocityWeek[]>([])
   const [velocityRequired, setVelocityRequired] = useState(0)
   const [velocityLoading, setVelocityLoading] = useState(true)
-  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [editProjectOpen, setEditProjectOpen] = useState(false)
 
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
@@ -436,26 +437,19 @@ export default function DashboardProjectView({ project }: Props) {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="font-display text-[21px] font-black">{project.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-[21px] font-black">{project.title}</h1>
+            <button
+              onClick={() => setEditProjectOpen(true)}
+              title="Editar proyecto"
+              className="w-6 h-6 flex items-center justify-center rounded-md text-pv-gray hover:text-pv-accent hover:bg-pv-accent/10 transition-colors text-[13px]"
+            >
+              ✏️
+            </button>
+          </div>
           <div className="text-[11px] text-pv-gray mt-0.5">{project.type}</div>
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
-          {/* PDF download button */}
-          <a
-            href={`/api/projects/${project.id}/report-pdf`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-pv-amber border border-pv-amber/30 rounded-lg hover:bg-pv-amber/10 transition-colors"
-          >
-            📥 PDF
-          </a>
-          {/* Reporte Semanal button */}
-          <button
-            onClick={() => setReportModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-pv-green border border-pv-green/30 rounded-lg hover:bg-pv-green/10 transition-colors"
-          >
-            📄 Reporte
-          </button>
           {/* Minuta button */}
           <button
             onClick={() => setMinutaOpen(true)}
@@ -1050,12 +1044,12 @@ export default function DashboardProjectView({ project }: Props) {
         onDeleted={handleKPIDeleted}
       />
 
-      {/* ReportModal */}
-      <ReportModal
-        open={reportModalOpen}
-        onClose={() => setReportModalOpen(false)}
-        projectId={project.id}
-        projectTitle={project.title}
+      {/* ProjectEditModal */}
+      <ProjectEditModal
+        open={editProjectOpen}
+        onClose={() => setEditProjectOpen(false)}
+        project={project}
+        onSaved={updated => setProject(prev => ({ ...prev, ...updated }))}
       />
     </div>
   )

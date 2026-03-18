@@ -22,6 +22,7 @@ export default function AgentPanel() {
   const { messages, isTyping, isProcessing, processingText, initMessages } = useAgentContext()
   const { askAgent } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
+  const [chipsOpen, setChipsOpen] = useState(true)
 
   useEffect(() => {
     if (messages.length > 0) return // don't overwrite active session
@@ -69,10 +70,14 @@ export default function AgentPanel() {
 
       {/* Chips */}
       <div className="flex-shrink-0 border-t border-white/[0.07]">
-        <div className="text-[9px] font-bold uppercase tracking-[0.5px] text-pv-purple px-3.5 pt-2.5 pb-1">
+        <button
+          onClick={() => setChipsOpen(o => !o)}
+          className="w-full text-left text-[9px] font-bold uppercase tracking-[0.5px] text-pv-purple px-3.5 pt-2.5 pb-1 flex items-center justify-between hover:text-pv-accent transition-colors"
+        >
           ✦ Elige una acción
-        </div>
-        <QuickChips onAsk={askAgent} onMinuta={() => setMinutaOpen(true)} />
+          <span className={`transition-transform duration-200 ${chipsOpen ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        {chipsOpen && <QuickChips onAsk={askAgent} />}
       </div>
 
       {/* Minuta Modal */}

@@ -78,6 +78,24 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## FASE 3.5 — UX Fixes & Project Edit ✅ COMPLETADA
+
+### F3.5.1 — Fix PDF (renderToBuffer) ✅
+- Reemplazado `renderToStream` + conversión manual de stream por `renderToBuffer` en `GET /api/projects/[id]/report-pdf`
+- `renderToBuffer` devuelve un `Buffer` directamente; pasado a `new NextResponse(buffer, {...})` sin conversión
+
+### F3.5.2 — Quick Chips Colapsable ✅
+- Añadido `chipsOpen` state (default `true`) en `AgentPanel.tsx`
+- Label "✦ Elige una acción" convertido en botón toggle con flecha rotante `▾`
+- `<QuickChips>` renderizado condicionalmente con `{chipsOpen && ...}`; cuando colapsado el chat ocupa todo el espacio
+
+### F3.5.3 — Modal Editar Proyecto ✅
+- **Nuevo componente:** `src/components/dashboard/ProjectEditModal.tsx` — Dialog con campos: título, tipo, status (toggle ok/warn/danger), fechas inicio/fin, presupuesto, facturado
+- **Submit:** `PUT /api/projects/${project.id}`, llama `onSaved(updated)` → `setProject` local sin `router.refresh()`
+- **Integración:** `DashboardProjectView.tsx` — prop `project` convertida a estado (`useState<ProjectWithRelations>(projectProp)`); botón ✏️ junto al título en header
+
+---
+
 ## FASE 3 — Advanced PM ✅ COMPLETADA
 
 ### F3.3 — Detección Predictiva de Delays ✅
@@ -148,6 +166,7 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 | F3.4 | Vista Capacidad Equipo | ★★★★☆ | ✅ Hecho |
 | F3.1 | Dependencias Entregables | ★★★☆☆ | ✅ Hecho |
 | F3.2 | Reporte PDF Exportable | ★★★☆☆ | ✅ Hecho |
+| F3.5 | UX Fixes & Project Edit | ★★★★☆ | ✅ Hecho |
 | F4.3 | Portfolio View | ★★★☆☆ | ✅ Hecho |
 | F4.x | Resto Enterprise features | ★★☆☆☆ | ⚪ Futuro |
 

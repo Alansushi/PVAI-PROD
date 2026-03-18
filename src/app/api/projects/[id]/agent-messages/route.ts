@@ -31,6 +31,7 @@ export async function GET(
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = prisma as any
   const messages = await db.agentMessage.findMany({
     where: { projectId: id },

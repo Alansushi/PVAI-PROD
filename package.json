@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src/",
+    "check": "tsc --noEmit && eslint src/",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -360,7 +360,7 @@ export default function DBMinutaModal({
               </div>
               <div className="text-[11px] text-pv-gray space-y-1">
                 <p className="font-semibold text-white/60">Sugerencias:</p>
-                <p>• Incluye acuerdos concretos: "Se aprobó...", "Queda pendiente..."</p>
+                <p>• Incluye acuerdos concretos: &quot;Se aprobó...&quot;, &quot;Queda pendiente...&quot;</p>
                 <p>• Menciona nombres de entregables o fechas específicas</p>
               </div>
               <div className="flex justify-end gap-2">

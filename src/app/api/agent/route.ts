@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
 
   // S3: Rate limit específico para minutas (3 por 5 minutos por proyecto)
   if (type === 'minuta') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = prisma as any
     const recentMinutas = await db.agentMessage.count({
       where: { projectId, role: 'user', createdAt: { gte: new Date(Date.now() - 5 * 60_000) } },
@@ -276,6 +277,7 @@ Reglas estrictas:
 
   if (isReporte) {
     // Fetch project with risks and KPIs for enriched context
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = prisma as any
     const [risks, kpis] = await Promise.all([
       db.projectRisk.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } }).catch(() => []),
@@ -353,6 +355,7 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
 
     // Persist conversation to DB
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = prisma as any
     await db.agentMessage.createMany({
       data: [

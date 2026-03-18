@@ -82,6 +82,7 @@ export async function GET() {
     const vel = velocityMap.get(p.id) ?? { thisWeek: 0, lastWeek: 0 }
     return {
       ...p,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       openRisks: (p as any).risks?.length ?? 0,
       velocityThisWeek: vel.thisWeek,
       velocityDelta: vel.thisWeek - vel.lastWeek,

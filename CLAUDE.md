@@ -13,6 +13,20 @@
 - Cast necesario: `prisma.model.findMany(...) as unknown as DBType[]`
 - Al hacer tareas largas, crear lista de To Do's antes de empezar
 
+## Reglas route.ts (App Router)
+- **Solo exportar HTTP method handlers**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`
+- **Nunca** hacer `export interface`, `export type`, `export const` en archivos `route.ts`
+- Turbopack puede no registrar los handlers correctamente si hay otros exports en el mismo archivo
+- Si necesitas tipos compartidos, definirlos en un archivo aparte (e.g., `types.ts` en la misma carpeta) sin exportarlos desde `route.ts`
+
+## Checklist pre-push a main (OBLIGATORIO)
+Antes de completar cualquier implementación y pushear a `main`:
+- [ ] `npm run check` sin errores (`tsc --noEmit && next lint`)
+- [ ] Ningún `route.ts` exporta interfaces/types/consts (`grep -rn "^export interface\|^export type\|^export const" src/app/api/`)
+- [ ] Nuevas rutas API probadas en browser o con curl antes de pushear
+- [ ] Migraciones Prisma corridas y verificadas (`npx prisma migrate status`)
+- [ ] Usar rama de feature + PR en lugar de pushear directo a `main` (Vercel crea preview por rama)
+
 ## Auth
 - `src/auth.ts` exporta `{ handlers, auth, signIn, signOut }`
 - En server components: `await auth()` directo (NO como wrapper)
