@@ -29,15 +29,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo link */}
-        <div className="text-center mt-6">
-          <a
-            href="/demo"
-            className="text-[12px] text-[#8BA3B8] hover:text-white transition-colors no-underline"
-          >
-            Ver demo pública sin login →
-          </a>
-        </div>
       </div>
     </div>
   )

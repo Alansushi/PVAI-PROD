@@ -8,7 +8,6 @@
 - Node.js 18 (WSL2)
 
 ## Reglas críticas
-- **NO tocar** `/src/app/demo/**` ni `/src/lib/data/**` — demo pública con datos mock, no se modifica
 - Usar `src/lib/db-types.ts` para tipos hasta que `prisma generate` produzca los tipos oficiales
 - Cast necesario: `prisma.model.findMany(...) as unknown as DBType[]`
 - Al hacer tareas largas, crear lista de To Do's antes de empezar
