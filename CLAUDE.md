@@ -21,6 +21,7 @@
 ## Checklist pre-push a main (OBLIGATORIO)
 Antes de completar cualquier implementación y pushear a `main`:
 - [ ] `npm run check` sin errores (`tsc --noEmit && next lint`)
+- [ ] `npm run build` sin errores — es el check definitivo; Vercel fallará el deploy si este falla
 - [ ] Ningún `route.ts` exporta interfaces/types/consts (`grep -rn "^export interface\|^export type\|^export const" src/app/api/`)
 - [ ] Nuevas rutas API probadas en browser o con curl antes de pushear
 - [ ] Migraciones Prisma corridas y verificadas (`npx prisma migrate status`)

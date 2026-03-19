@@ -9,6 +9,17 @@
             "command": "/mnt/c/Users/age_a/Documentos/Proyectos/PRODProyectovivo/pvai-next/.claude/hooks/block-env-secrets.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/mnt/c/Users/age_a/Documentos/Proyectos/PRODProyectovivo/pvai-next/.claude/hooks/pre-push-checks.sh",
+            "timeout": 300,
+            "statusMessage": "Ejecutando pre-push checks (check + build)..."
+          }
+        ]
       }
     ]
   }
