@@ -1,8 +1,8 @@
 export default function DashboardFooter() {
   return (
     <footer
-      className="border-t border-white/[0.06] px-6 py-4 flex items-center justify-between"
-      style={{ marginRight: '295px', background: 'rgba(0,0,0,0.15)' }}
+      className="border-t border-white/[0.06] px-6 py-4 flex items-center justify-between lg:mr-[295px]"
+      style={{ background: 'rgba(0,0,0,0.15)' }}
     >
       {/* Izquierda: branding + versión */}
       <div className="flex items-center gap-3">

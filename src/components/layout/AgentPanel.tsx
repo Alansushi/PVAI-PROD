@@ -23,6 +23,7 @@ export default function AgentPanel() {
   const { askAgent } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
   const [chipsOpen, setChipsOpen] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (messages.length > 0) return // don't overwrite active session
@@ -42,11 +43,10 @@ export default function AgentPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  return (
-    <div
-      className="border-l border-white/[0.06] flex flex-col overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))', position: 'fixed', right: 0, top: 68, bottom: 0, width: 295 }}
-    >
+  const panelStyle = { background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))' }
+
+  const panelContent = (
+    <>
       {/* Header */}
       <div className="px-3.5 py-3 border-b border-pv-accent/15 flex items-center gap-1.5 flex-shrink-0">
         <div className="w-[7px] h-[7px] bg-pv-teal rounded-full animate-pulse" />
@@ -79,6 +79,55 @@ export default function AgentPanel() {
         </button>
         {chipsOpen && <QuickChips onAsk={askAgent} />}
       </div>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop panel — hidden on mobile */}
+      <div
+        className="hidden lg:flex flex-col overflow-hidden border-l border-white/[0.06]"
+        style={{ ...panelStyle, position: 'fixed', right: 0, top: 68, bottom: 0, width: 295 }}
+      >
+        {panelContent}
+      </div>
+
+      {/* Mobile floating button */}
+      <button
+        className="fixed bottom-4 right-4 z-[100] lg:hidden w-12 h-12 rounded-full bg-pv-accent flex items-center justify-center shadow-xl hover:bg-pv-accent/90 transition-colors"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir agente IA"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z" />
+          <circle cx="9" cy="10" r="1" fill="currentColor" />
+          <circle cx="15" cy="10" r="1" fill="currentColor" />
+        </svg>
+      </button>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-[350] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <div
+            className="relative flex flex-col rounded-t-2xl overflow-hidden border-t border-white/[0.06]"
+            style={{ ...panelStyle, height: '85vh' }}
+          >
+            {/* Close button */}
+            <button
+              className="absolute top-3 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white/10 text-pv-gray hover:text-white transition-colors"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Cerrar agente"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            {panelContent}
+          </div>
+        </div>
+      )}
 
       {/* Minuta Modal */}
       <DBMinutaModal
@@ -86,6 +135,6 @@ export default function AgentPanel() {
         onClose={() => setMinutaOpen(false)}
         projectId={projectId}
       />
-    </div>
+    </>
   )
 }

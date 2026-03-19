@@ -956,7 +956,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       />
 
       {/* Activity + Minutas */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {/* Activity feed */}
         {activityLoading ? (
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">

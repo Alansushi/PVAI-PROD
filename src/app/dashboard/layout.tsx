@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { AgentProvider } from '@/lib/context/AgentContext'
 import { ProjectProvider } from '@/lib/context/ProjectContext'
-import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import DashboardShell from '@/components/layout/DashboardShell'
 import DashboardFooter from '@/components/layout/DashboardFooter'
@@ -48,8 +47,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <ProjectProvider>
     <AgentProvider>
       <div className="min-h-screen bg-pv-navy flex flex-col">
-        <DashboardNav session={session} orgName={primaryMembership.organization.name} />
-        <DashboardShell sidebar={<DashboardSidebar projects={projects} isOnlyGuest={isOnlyGuest} />}>
+        <DashboardShell
+          session={session}
+          orgName={primaryMembership.organization.name}
+          sidebar={<DashboardSidebar projects={projects} isOnlyGuest={isOnlyGuest} />}
+        >
           {children}
         </DashboardShell>
         <DashboardFooter />

@@ -19,9 +19,10 @@ interface Notification {
 interface Props {
   session: Session
   orgName?: string
+  onToggleSidebar?: () => void
 }
 
-export default function DashboardNav({ session, orgName = '' }: Props) {
+export default function DashboardNav({ session, orgName = '', onToggleSidebar }: Props) {
   const user = session.user
   const [profileOpen, setProfileOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -83,12 +84,28 @@ export default function DashboardNav({ session, orgName = '' }: Props) {
 
   return (
     <>
-      <nav className="flex justify-between items-center px-8 py-3.5 border-b border-white/[0.06] bg-[rgba(12,31,53,0.97)] backdrop-blur-xl sticky top-0 z-[200]">
-        <div>
-          <div className="font-display text-xl font-black">
-            Proyecto<span className="text-pv-accent">.</span>Vivo
+      <nav className="flex justify-between items-center px-4 lg:px-8 py-3.5 border-b border-white/[0.06] bg-[rgba(12,31,53,0.97)] backdrop-blur-xl sticky top-0 z-[200]">
+        <div className="flex items-center gap-3">
+          {/* Hamburger — mobile only */}
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/[0.05] transition-colors text-pv-gray hover:text-white"
+              aria-label="Abrir menú"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+          )}
+          <div>
+            <div className="font-display text-xl font-black">
+              Proyecto<span className="text-pv-accent">.</span>Vivo
+            </div>
+            <div className="text-[10px] text-pv-gray mt-px">Tu agente IA de proyectos</div>
           </div>
-          <div className="text-[10px] text-pv-gray mt-px">Tu agente IA de proyectos</div>
         </div>
 
         <div className="flex items-center gap-3">

@@ -62,7 +62,7 @@ function InicioSkeleton() {
         <div className="h-5 w-48 bg-white/[0.06] rounded animate-pulse" />
         <div className="h-3 w-32 bg-white/[0.06] rounded animate-pulse" />
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4 flex flex-col gap-2">
             <div className="h-2 w-20 bg-white/[0.06] rounded animate-pulse" />
@@ -71,7 +71,7 @@ function InicioSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-[1fr_260px] gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-4 items-start">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="h-3 w-28 bg-white/[0.06] rounded animate-pulse" />
@@ -223,7 +223,7 @@ export default function DashboardInicio() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-2">Proyectos totales</div>
           <div className="font-display text-[26px] font-black leading-none text-[#2E8FC0]">
@@ -278,7 +278,7 @@ export default function DashboardInicio() {
       )}
 
       {/* Projects + upcoming deadlines */}
-      <div className="grid grid-cols-[1fr_260px] gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-4 items-start">
         {/* Projects table */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
@@ -297,7 +297,8 @@ export default function DashboardInicio() {
               </div>
             </div>
           ) : (
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden min-w-[700px]">
               <div
                 className="grid text-[9px] font-bold uppercase tracking-[0.5px] text-pv-gray px-4 py-2 border-b border-white/[0.07]"
                 style={{ gridTemplateColumns: '1fr 90px 110px 100px 80px 90px 110px 32px' }}
@@ -413,6 +414,7 @@ export default function DashboardInicio() {
                 )
               })}
             </div>
+            </div>
           )}
         </div>
 
@@ -460,7 +462,7 @@ export default function DashboardInicio() {
           <h2 className="text-[11px] font-bold uppercase tracking-[0.8px] text-pv-gray">
             Equipo del despacho
           </h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {team.map((member) => {
               const pct = member.total > 0 ? Math.round((member.done / member.total) * 100) : 0
               return (

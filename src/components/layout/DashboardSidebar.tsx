@@ -27,7 +27,7 @@ export default function DashboardSidebar({ projects, isOnlyGuest = false }: Prop
   const isDashboard = pathname === '/dashboard/inicio'
 
   return (
-    <aside className="bg-black/20 border-r border-white/[0.06] flex flex-col overflow-y-auto">
+    <aside className="h-full bg-black/20 border-r border-white/[0.06] flex flex-col overflow-y-auto">
       <div className="px-3.5 pt-[18px] pb-1.5 text-[9px] font-bold uppercase tracking-[1px] text-pv-gray">
         General
       </div>
