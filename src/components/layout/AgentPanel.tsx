@@ -22,7 +22,7 @@ export default function AgentPanel() {
   const { messages, isTyping, isProcessing, processingText, initMessages } = useAgentContext()
   const { askAgent } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
-  const [chipsOpen, setChipsOpen] = useState(true)
+  const [chipsOpen, setChipsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
@@ -43,15 +43,15 @@ export default function AgentPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  const panelStyle = { background: 'linear-gradient(180deg,rgba(15,45,74,0.5),rgba(12,31,53,0.8))' }
+  const panelStyle = { background: 'linear-gradient(180deg, #071829 0%, #0A1A2E 100%)' }
 
   const panelContent = (
     <>
       {/* Header */}
-      <div className="px-3.5 py-3 border-b border-pv-accent/15 flex items-center gap-1.5 flex-shrink-0">
+      <div className="px-3.5 py-3 border-b border-pv-accent/30 bg-pv-accent/[0.08] flex items-center gap-1.5 flex-shrink-0">
         <div className="w-[7px] h-[7px] bg-pv-teal rounded-full animate-pulse" />
         <h3 className="text-xs font-bold text-pv-accent flex-1">Agente IA · Proyecto Vivo</h3>
-        <div className="text-[9px] text-pv-teal font-semibold bg-pv-teal/10 px-1.5 py-0.5 rounded-lg">En línea</div>
+        <div className="text-[9px] text-pv-teal font-semibold bg-pv-teal/15 px-1.5 py-0.5 rounded-lg">En línea</div>
       </div>
 
       {/* Messages */}
@@ -69,10 +69,10 @@ export default function AgentPanel() {
       )}
 
       {/* Chips */}
-      <div className="flex-shrink-0 border-t border-white/[0.07]">
+      <div className="flex-shrink-0 border-t border-pv-accent/20" style={{ background: 'rgba(46,143,192,0.07)' }}>
         <button
           onClick={() => setChipsOpen(o => !o)}
-          className="w-full text-left text-[9px] font-bold uppercase tracking-[0.5px] text-pv-purple px-3.5 pt-2.5 pb-1 flex items-center justify-between hover:text-pv-accent transition-colors"
+          className="w-full text-left text-[9px] font-bold uppercase tracking-[0.5px] text-pv-accent/80 px-3.5 pt-2.5 pb-2 flex items-center justify-between hover:text-pv-accent transition-colors"
         >
           ✦ Elige una acción
           <span className={`transition-transform duration-200 ${chipsOpen ? 'rotate-180' : ''}`}>▾</span>

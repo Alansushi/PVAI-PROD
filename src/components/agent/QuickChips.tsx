@@ -20,7 +20,7 @@ export default function QuickChips({ onAsk }: Props) {
                 key={prompt.id}
                 onClick={() => onAsk(prompt)}
                 className="px-2.5 py-1.5 rounded-md text-[10.5px] font-medium cursor-pointer transition-all text-left border font-sans
-                  bg-pv-purple/10 border-pv-purple/25 text-[#B89EE8] hover:bg-pv-purple/22 hover:border-pv-purple"
+                  bg-pv-purple/12 border-pv-purple/35 text-[#C4AFF0] hover:bg-pv-purple/25 hover:border-pv-purple/60"
               >
                 {prompt.icon} {prompt.label}
               </button>

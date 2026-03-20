@@ -10,8 +10,8 @@ export default function AgentMessage({ message }: Props) {
     <div
       className={`border-l-2 rounded-r-lg rounded-br-lg px-2.5 py-2 text-[11px] leading-relaxed text-[#C0D0E0] animate-msgIn
         ${isUser
-          ? 'border-[#B89EE8] bg-pv-purple/8'
-          : 'border-pv-accent bg-white/[0.04]'
+          ? 'border-pv-purple/80 bg-pv-purple/[0.12]'
+          : 'border-pv-accent bg-pv-accent/[0.07]'
         }`}
     >
       <div

@@ -14,6 +14,7 @@ interface Props {
   onDeleted?: (id: string) => void
   members?: DBProjectMember[]
   allDeliverables?: { id: string; name: string; status: string }[]
+  currentUser?: { id: string; name: string }
 }
 
 type Status = 'ok' | 'warn' | 'danger'
@@ -42,6 +43,7 @@ export default function DBTaskModal({
   onDeleted,
   members = [],
   allDeliverables = [],
+  currentUser,
 }: Props) {
   const isEditing = !!editingDeliverable
 
@@ -83,18 +85,24 @@ export default function DBTaskModal({
         notes: editingDeliverable.notes ?? '',
       })
     } else {
-      setSelectedMemberId('')
+      // Pre-fill responsable with current user when creating
+      const currentMember = currentUser
+        ? members.find(m => m.userId === currentUser.id) ?? null
+        : null
+      setSelectedMemberId(currentMember ? currentMember.id : '')
+      const now = new Date()
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       setForm({
         name: '',
         status: defaultStatus,
         priority: 'media',
-        ownerName: '',
-        startDate: '',
+        ownerName: currentUser?.name ?? '',
+        startDate: todayStr,
         dueDate: '',
         notes: '',
       })
     }
-  }, [editingDeliverable, defaultStatus, open])
+  }, [editingDeliverable, defaultStatus, open, currentUser, members])
 
   // Fetch existing dependencies when editing
   useEffect(() => {
@@ -115,6 +123,43 @@ export default function DBTaskModal({
 
   function set(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleDuplicate() {
+    if (!editingDeliverable) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/deliverables`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Copia de ${editingDeliverable.name}`,
+          status: form.status,
+          priority: form.priority,
+          notes: form.notes || null,
+          ownerName: form.ownerName || null,
+          ownerId: editingDeliverable.ownerId || undefined,
+          startDate: form.startDate || null,
+          dueDate: form.dueDate || null,
+        }),
+      })
+      if (res.ok) {
+        const dup = await res.json()
+        if (dup.dueDate) dup.dueDate = new Date(dup.dueDate)
+        if (dup.startDate) dup.startDate = new Date(dup.startDate)
+        if (dup.createdAt) dup.createdAt = new Date(dup.createdAt)
+        if (dup.updatedAt) dup.updatedAt = new Date(dup.updatedAt)
+        onSaved(dup as DBDeliverable)
+        onClose()
+      } else {
+        setError('No se pudo duplicar. Intenta de nuevo.')
+      }
+    } catch {
+      setError('No se pudo duplicar. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -426,6 +471,16 @@ export default function DBTaskModal({
 
           {/* Buttons */}
           <div className="flex gap-2 pt-1">
+            {isEditing && (
+              <button
+                type="button"
+                onClick={handleDuplicate}
+                disabled={loading || deleting}
+                className="px-3 py-2 text-[11px] font-semibold text-pv-accent border border-pv-accent/30 rounded-lg hover:bg-pv-accent/10 transition-colors disabled:opacity-50"
+              >
+                Duplicar
+              </button>
+            )}
             {isEditing && onDeleted && (
               <button
                 type="button"

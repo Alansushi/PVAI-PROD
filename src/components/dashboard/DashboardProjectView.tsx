@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage, DBProjectRisk, DBProjectKPI, DBVelocityWeek } from '@/lib/db-types'
 import { PRIORITY_COLORS } from '@/lib/constants'
 import { toLocalDate } from '@/lib/dates'
@@ -104,6 +105,10 @@ function timeAgo(date: Date): string {
 }
 
 export default function DashboardProjectView({ project: projectProp }: Props) {
+  const { data: session } = useSession()
+  const currentUser = session?.user?.id && session?.user?.name
+    ? { id: session.user.id, name: session.user.name }
+    : undefined
   const [project, setProject] = useState<ProjectWithRelations>(projectProp)
   const [deliverables, setDeliverables] = useState<DBDeliverable[]>(projectProp.deliverables)
   const [members, setMembers] = useState<DBProjectMember[]>(projectProp.members as DBProjectMember[])
@@ -909,6 +914,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         onDeleted={handleDeleted}
         members={members}
         allDeliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
+        currentUser={currentUser}
       />
 
       {/* InviteMemberModal */}
