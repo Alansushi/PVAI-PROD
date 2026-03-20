@@ -161,15 +161,6 @@ export default function DashboardNav({ session, orgName = '', onToggleSidebar }:
             </div>
           </button>
 
-          <div className="w-px h-6 bg-white/10" />
-
-          {/* Sign out */}
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="text-[11px] text-pv-gray hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/8"
-          >
-            Salir
-          </button>
         </div>
       </nav>
 

@@ -21,6 +21,7 @@ import KPIsPanel from './KPIsPanel'
 import VelocityWidget from './VelocityWidget'
 import CapacityWidget from './CapacityWidget'
 import ProjectEditModal from './ProjectEditModal'
+import MembersListModal from './MembersListModal'
 
 type ProjectWithRelations = DBProjectWithRelations
 
@@ -123,6 +124,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [editingPackage, setEditingPackage] = useState<DBDeliverablePackage | null>(null)
   const [defaultStatus, setDefaultStatus] = useState<'ok' | 'warn' | 'danger'>('warn')
   const [profileMember, setProfileMember] = useState<DBProjectMember | null>(null)
+  const [membersListOpen, setMembersListOpen] = useState(false)
   const [activityLogs, setActivityLogs] = useState<DBAuditLogEntry[]>([])
   const [minutasKey, setMinutasKey] = useState(0)
   const [colSorts, setColSorts] = useState<Record<string, ColSort>>({
@@ -477,12 +479,13 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
               </div>
             ))}
             {overflow > 0 && (
-              <div
-                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-pv-gray bg-white/[0.08] border-2 border-pv-navy"
-                title={`${overflow} más`}
+              <button
+                onClick={() => setMembersListOpen(true)}
+                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-pv-gray bg-white/[0.08] border-2 border-pv-navy cursor-pointer hover:ring-2 hover:ring-white/40 transition-all"
+                title={`Ver ${overflow} más`}
               >
                 +{overflow}
-              </div>
+              </button>
             )}
             <button
               onClick={() => setInviteOpen(true)}
@@ -491,9 +494,12 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
             >
               +
             </button>
-            <span className="text-[10px] text-pv-gray ml-0.5">
+            <button
+              onClick={() => setMembersListOpen(true)}
+              className="text-[10px] text-pv-gray ml-0.5 hover:text-pv-accent transition-colors"
+            >
               {members.length} persona{members.length !== 1 ? 's' : ''}
-            </span>
+            </button>
           </div>
           <div
             className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${
@@ -1006,6 +1012,15 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         {/* Minutas panel */}
         <MinutasPanel projectId={project.id} key={minutasKey} />
       </div>
+
+      {/* MembersListModal */}
+      <MembersListModal
+        open={membersListOpen}
+        onClose={() => setMembersListOpen(false)}
+        members={members}
+        onSelectMember={m => setProfileMember(m)}
+        onInvite={() => setInviteOpen(true)}
+      />
 
       {/* CollaboratorProfileModal */}
       <CollaboratorProfileModal

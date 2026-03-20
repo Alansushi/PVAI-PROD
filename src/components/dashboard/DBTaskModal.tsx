@@ -273,7 +273,7 @@ export default function DBTaskModal({
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[420px] shadow-2xl"
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[420px] shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-[17px] font-bold text-white mb-5">
@@ -411,7 +411,7 @@ export default function DBTaskModal({
               {depLoading ? (
                 <div className="h-6 bg-white/[0.04] rounded animate-pulse" />
               ) : (
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto">
                   {blockedBy.map(dep => (
                     <div key={dep.blockerId} className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-2.5 py-1.5">
                       {dep.blocker?.status === 'danger' && (
