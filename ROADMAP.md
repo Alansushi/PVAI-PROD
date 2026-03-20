@@ -150,6 +150,47 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+---
+
+## FASE 5 — UX Adopción ✅ COMPLETADA
+
+### F5.1 — Toast Notifications ✅
+- **Contexto:** `src/lib/context/ToastContext.tsx` — `ToastProvider` + `useToast()` hook
+- Toasts centrados en pantalla, 3.2s auto-dismiss, tipos: success (verde), error (rojo), info (azul)
+- **Proveedor:** `src/app/dashboard/layout.tsx` envuelve todo el dashboard
+- **Integrado en:** NewProjectModal, ProjectEditModal, DBTaskModal, RiskModal, KPIModal — todas las mutaciones muestran toast de éxito/info
+
+### F5.2 — Onboarding Checklist ✅
+- **Componente:** `src/components/dashboard/OnboardingChecklist.tsx`
+- 4 pasos: Crear proyecto → Agregar miembro → Crear entregable → Usar IA
+- Estado persistido en `localStorage` (`pvai_onboarding_done` + `pvai_onboarding_done_checked`)
+- Paso "Crear proyecto" se auto-activa cuando `hasProjects === true`
+- Se muestra en `/inicio` hasta completar todos o cerrar manualmente con ×
+- Progress bar animada con porcentaje de completado
+
+### F5.3 — Confirmaciones Destructivas ✅
+- **Componente:** `src/components/ui/confirm-dialog.tsx` — modal reutilizable
+- **Integrado en:** DBTaskModal (eliminar entregable), RiskModal (eliminar riesgo), KPIModal (eliminar KPI)
+- Un click en "Eliminar" abre el confirm; confirmación ejecuta la acción real + toast
+
+### F5.4 — Tabs en Vista de Proyecto ✅
+- 4 tabs en `DashboardProjectView.tsx`: `Tablero` | `Análisis` | `Riesgos` | `Minutas`
+- **Tablero** (default): Gantt + Kanban + Paquetes de entregables
+- **Análisis**: KPIs + VelocityWidget + CapacityWidget
+- **Riesgos**: RisksPanel
+- **Minutas**: Activity feed + MinutasPanel
+- Header, widget grid (2×2) y milestone banners siempre visibles (fuera de tabs)
+- Tab bar con estilo pill activo en `bg-pv-accent`
+
+### F5.5 — Empty State Mejorado + Tooltips Chips ✅
+- `/inicio` empty state: título en Playfair + value prop + botón NewProjectButton directo
+- QuickChips: `title={prompt.prompt}` HTML en cada chip — tooltip nativo del browser al hacer hover
+
+### F5.6 — Botón IA flotante en Móvil ✅ (ya implementado en F3.5)
+- FAB azul en mobile que abre AgentPanel como drawer desde abajo (ya existía en AgentPanel.tsx)
+
+---
+
 ## Tabla de prioridades
 
 | Fase | Feature | Impacto | Estado |
@@ -169,6 +210,12 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 | F3.5 | UX Fixes & Project Edit | ★★★★☆ | ✅ Hecho |
 | F4.3 | Portfolio View | ★★★☆☆ | ✅ Hecho |
 | F4.x | Resto Enterprise features | ★★☆☆☆ | ⚪ Futuro |
+| F5.1 | Toast Notifications | ★★★★★ | ✅ Hecho |
+| F5.2 | Onboarding Checklist | ★★★★☆ | ✅ Hecho |
+| F5.3 | Confirmaciones Destructivas | ★★★★☆ | ✅ Hecho |
+| F5.4 | Tabs en Vista de Proyecto | ★★★★☆ | ✅ Hecho |
+| F5.5 | Empty State + Tooltips | ★★★☆☆ | ✅ Hecho |
+| F5.6 | IA flotante móvil | ★★★☆☆ | ✅ Hecho (prev.) |
 
 ---
 

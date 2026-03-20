@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import UserProfileModal from '@/components/dashboard/UserProfileModal'
 import NotificationPanel from '@/components/dashboard/NotificationPanel'

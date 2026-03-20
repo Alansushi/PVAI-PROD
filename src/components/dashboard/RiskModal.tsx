@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import type { DBProjectRisk } from '@/lib/db-types'
+import { useToast } from '@/lib/context/ToastContext'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface Props {
   open: boolean
@@ -26,6 +28,7 @@ const STATUS_OPTS = [
 
 export default function RiskModal({ open, onClose, projectId, editingRisk, onSaved, onDeleted }: Props) {
   const isEditing = !!editingRisk
+  const { showToast } = useToast()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [probability, setProbability] = useState<'low' | 'medium' | 'high'>('medium')
@@ -35,6 +38,7 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
   const [ownerName, setOwnerName] = useState('')
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { setError(null) }, [open])
@@ -65,6 +69,7 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
       const res = await fetch(url, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       if (!res.ok) { setError('No se pudo guardar. Intenta de nuevo.'); return }
       onSaved(await res.json()); onClose()
+      showToast(isEditing ? 'Riesgo actualizado' : 'Riesgo creado')
     } catch { setError('No se pudo guardar. Intenta de nuevo.') }
     finally { setLoading(false) }
   }
@@ -76,8 +81,9 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
       const res = await fetch(`/api/projects/${projectId}/risks/${editingRisk.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       onDeleted(editingRisk.id); onClose()
+      showToast('Riesgo eliminado', 'info')
     } catch { setError('No se pudo eliminar.') }
-    finally { setDeleting(false) }
+    finally { setDeleting(false); setConfirmOpen(false) }
   }
 
   if (!open) return null
@@ -96,6 +102,7 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
@@ -174,9 +181,9 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
 
           <div className="px-5 py-3 border-t border-white/[0.08] flex items-center gap-2 flex-shrink-0">
             {isEditing && onDeleted && (
-              <button type="button" onClick={handleDelete} disabled={deleting}
+              <button type="button" onClick={() => setConfirmOpen(true)} disabled={deleting}
                 className="px-3 py-1.5 text-[11px] font-semibold text-pv-red border border-pv-red/30 rounded-lg hover:bg-pv-red/10 transition-colors disabled:opacity-50 mr-auto">
-                {deleting ? 'Eliminando...' : 'Eliminar'}
+                Eliminar
               </button>
             )}
             <button type="button" onClick={onClose}
@@ -191,5 +198,15 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
         </form>
       </div>
     </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="¿Eliminar riesgo?"
+        description="Esta acción no se puede deshacer."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+        loading={deleting}
+      />
+    </>
   )
 }

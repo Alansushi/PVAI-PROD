@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import NewProjectButton from '@/components/dashboard/NewProjectButton'
+import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
 
@@ -222,6 +223,9 @@ export default function DashboardInicio() {
         </p>
       </div>
 
+      {/* Onboarding checklist — shown until dismissed or all steps done */}
+      <OnboardingChecklist hasProjects={projects.length > 0} />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
@@ -290,11 +294,12 @@ export default function DashboardInicio() {
 
           {projects.length === 0 ? (
             <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-8 text-center">
-              <div className="text-[32px] mb-3">🏗</div>
-              <div className="text-[14px] font-semibold text-white mb-1">Sin proyectos aún</div>
-              <div className="text-[12px] text-pv-gray">
-                Crea tu primer proyecto desde el panel lateral o desde Supabase Studio.
+              <div className="text-[36px] mb-3">🏗</div>
+              <div className="font-display text-[16px] font-black text-white mb-2">Crea tu primer proyecto</div>
+              <div className="text-[12px] text-pv-gray max-w-xs mx-auto mb-4">
+                Registra un proyecto, agrega entregables y deja que la IA coordine el seguimiento por ti.
               </div>
+              <NewProjectButton onCreated={fetchProjects} />
             </div>
           ) : (
             <div className="overflow-x-auto">

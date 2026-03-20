@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import type { DBDeliverable, DBProjectMember, DBDeliverableDependency } from '@/lib/db-types'
 import { toDateInput } from '@/lib/dates'
+import { useToast } from '@/lib/context/ToastContext'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface Props {
   open: boolean
@@ -46,9 +48,11 @@ export default function DBTaskModal({
   currentUser,
 }: Props) {
   const isEditing = !!editingDeliverable
+  const { showToast } = useToast()
 
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [blockedBy, setBlockedBy] = useState<DBDeliverableDependency[]>([])
@@ -152,6 +156,7 @@ export default function DBTaskModal({
         if (dup.updatedAt) dup.updatedAt = new Date(dup.updatedAt)
         onSaved(dup as DBDeliverable)
         onClose()
+        showToast('Entregable duplicado')
       } else {
         setError('No se pudo duplicar. Intenta de nuevo.')
       }
@@ -214,6 +219,7 @@ export default function DBTaskModal({
         if (saved.updatedAt) saved.updatedAt = new Date(saved.updatedAt)
         onSaved(saved as DBDeliverable)
         onClose()
+        showToast(isEditing ? 'Entregable actualizado' : 'Entregable creado')
       } else {
         setError('No se pudo guardar. Intenta de nuevo.')
       }
@@ -260,9 +266,11 @@ export default function DBTaskModal({
       if (res.ok) {
         onDeleted?.(editingDeliverable!.id)
         onClose()
+        showToast('Entregable eliminado', 'info')
       }
     } finally {
       setDeleting(false)
+      setConfirmOpen(false)
     }
   }
 
@@ -484,16 +492,11 @@ export default function DBTaskModal({
             {isEditing && onDeleted && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setConfirmOpen(true)}
                 disabled={deleting}
-                className="px-3 py-2 text-[11px] font-semibold text-pv-red border border-pv-red/30 rounded-lg hover:bg-pv-red/10 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-2 text-[11px] font-semibold text-pv-red border border-pv-red/30 rounded-lg hover:bg-pv-red/10 transition-colors disabled:opacity-50"
               >
-                {deleting ? (
-                  <>
-                    <span className="w-3 h-3 border border-pv-red/40 border-t-pv-red rounded-full animate-spin flex-shrink-0" />
-                    Eliminando...
-                  </>
-                ) : 'Eliminar'}
+                Eliminar
               </button>
             )}
             <button
@@ -518,6 +521,14 @@ export default function DBTaskModal({
           </div>
         </form>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="¿Eliminar entregable?"
+        description="Esta acción no se puede deshacer."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+        loading={deleting}
+      />
     </div>
   )
 }

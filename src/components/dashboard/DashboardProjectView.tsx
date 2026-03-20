@@ -144,6 +144,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [velocityRequired, setVelocityRequired] = useState(0)
   const [velocityLoading, setVelocityLoading] = useState(true)
   const [editProjectOpen, setEditProjectOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'tablero' | 'analisis' | 'riesgos' | 'minutas'>('tablero')
 
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
@@ -521,6 +522,28 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-0.5 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 w-fit">
+        {([
+          { id: 'tablero',  label: 'Tablero' },
+          { id: 'analisis', label: 'Análisis' },
+          { id: 'riesgos',  label: 'Riesgos' },
+          { id: 'minutas',  label: 'Minutas' },
+        ] as const).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+              activeTab === tab.id
+                ? 'bg-pv-accent text-white shadow-sm'
+                : 'text-pv-gray hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* 2×2 widget grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {/* Row 1 — Calendar + Notes */}
@@ -621,6 +644,9 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── TAB: TABLERO ─────────────────────────────── */}
+      {activeTab === 'tablero' && (<>
 
       {/* Gantt — manual rows OR auto-generated from deliverables */}
       {ganttRows.length > 0 && (
@@ -909,43 +935,10 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         )}
       </div>
 
-      {/* DBTaskModal */}
-      <DBTaskModal
-        open={taskModalOpen}
-        onClose={() => setTaskModalOpen(false)}
-        projectId={project.id}
-        editingDeliverable={editingDeliverable}
-        defaultStatus={defaultStatus}
-        onSaved={handleSaved}
-        onDeleted={handleDeleted}
-        members={members}
-        allDeliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
-        currentUser={currentUser}
-      />
+      </>)} {/* end tablero */}
 
-      {/* InviteMemberModal */}
-      <InviteMemberModal
-        open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
-        projectId={project.id}
-        onAdded={handleMemberAdded}
-      />
-
-      {/* DBMinutaModal */}
-      <DBMinutaModal
-        open={minutaOpen}
-        onClose={() => setMinutaOpen(false)}
-        projectId={project.id}
-        members={members}
-        deliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
-        onApplied={() => {
-          fetchDeliverables()
-          fetchActivity()
-          setMinutasKey(k => k + 1)
-        }}
-      />
-
-      {/* F2 Panels: KPIs + Velocity */}
+      {/* ── TAB: ANÁLISIS ────────────────────────────── */}
+      {activeTab === 'analisis' && (<>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         <KPIsPanel
           kpis={kpis}
@@ -955,21 +948,22 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         />
         <VelocityWidget weeks={velocityWeeks} requiredPerWeek={velocityRequired} loading={velocityLoading} />
       </div>
-
-      {/* F3.4 Capacity Widget */}
       <CapacityWidget members={members} deliverables={deliverables} loading={false} />
+      </>)} {/* end analisis */}
 
-      {/* F2 Risk Register */}
-      <RisksPanel
-        risks={risks}
-        loading={risksLoading}
-        onNew={() => { setEditingRisk(null); setRiskModalOpen(true) }}
-        onEdit={(risk) => { setEditingRisk(risk); setRiskModalOpen(true) }}
-      />
+      {/* ── TAB: RIESGOS ─────────────────────────────── */}
+      {activeTab === 'riesgos' && (
+        <RisksPanel
+          risks={risks}
+          loading={risksLoading}
+          onNew={() => { setEditingRisk(null); setRiskModalOpen(true) }}
+          onEdit={(risk) => { setEditingRisk(risk); setRiskModalOpen(true) }}
+        />
+      )}
 
-      {/* Activity + Minutas */}
+      {/* ── TAB: MINUTAS ─────────────────────────────── */}
+      {activeTab === 'minutas' && (<>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {/* Activity feed */}
         {activityLoading ? (
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 border-b border-white/[0.07]">
@@ -1008,10 +1002,46 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
             </div>
           </div>
         )}
-
-        {/* Minutas panel */}
         <MinutasPanel projectId={project.id} key={minutasKey} />
       </div>
+      </>)} {/* end minutas */}
+
+      {/* DBTaskModal */}
+      <DBTaskModal
+        open={taskModalOpen}
+        onClose={() => setTaskModalOpen(false)}
+        projectId={project.id}
+        editingDeliverable={editingDeliverable}
+        defaultStatus={defaultStatus}
+        onSaved={handleSaved}
+        onDeleted={handleDeleted}
+        members={members}
+        allDeliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
+        currentUser={currentUser}
+      />
+
+      {/* InviteMemberModal */}
+      <InviteMemberModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        projectId={project.id}
+        onAdded={handleMemberAdded}
+      />
+
+      {/* DBMinutaModal */}
+      <DBMinutaModal
+        open={minutaOpen}
+        onClose={() => setMinutaOpen(false)}
+        projectId={project.id}
+        members={members}
+        deliverables={deliverables.map(d => ({ id: d.id, name: d.name, status: d.status }))}
+        onApplied={() => {
+          fetchDeliverables()
+          fetchActivity()
+          setMinutasKey(k => k + 1)
+        }}
+      />
+
 
       {/* MembersListModal */}
       <MembersListModal

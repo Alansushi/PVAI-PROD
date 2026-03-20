@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import type { DBProjectKPI } from '@/lib/db-types'
+import { useToast } from '@/lib/context/ToastContext'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface Props {
   open: boolean
@@ -14,12 +16,14 @@ interface Props {
 
 export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved, onDeleted }: Props) {
   const isEditing = !!editingKPI
+  const { showToast } = useToast()
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
   const [current, setCurrent] = useState('')
   const [unit, setUnit] = useState('')
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { setError(null) }, [open])
@@ -46,6 +50,7 @@ export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved
       const res = await fetch(url, { method: isEditing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       if (!res.ok) { setError('No se pudo guardar. Intenta de nuevo.'); return }
       onSaved(await res.json()); onClose()
+      showToast(isEditing ? 'KPI actualizado' : 'KPI creado')
     } catch { setError('No se pudo guardar. Intenta de nuevo.') }
     finally { setLoading(false) }
   }
@@ -57,8 +62,9 @@ export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved
       const res = await fetch(`/api/projects/${projectId}/kpis/${editingKPI.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       onDeleted(editingKPI.id); onClose()
+      showToast('KPI eliminado', 'info')
     } catch { setError('No se pudo eliminar.') }
-    finally { setDeleting(false) }
+    finally { setDeleting(false); setConfirmOpen(false) }
   }
 
   const pct = target && current ? Math.min(Math.round((parseFloat(current) / parseFloat(target)) * 100), 100) : 0
@@ -67,6 +73,7 @@ export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved
   if (!open) return null
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col">
@@ -134,9 +141,9 @@ export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved
 
           <div className="px-5 py-3 border-t border-white/[0.08] flex items-center gap-2">
             {isEditing && onDeleted && (
-              <button type="button" onClick={handleDelete} disabled={deleting}
+              <button type="button" onClick={() => setConfirmOpen(true)} disabled={deleting}
                 className="px-3 py-1.5 text-[11px] font-semibold text-pv-red border border-pv-red/30 rounded-lg hover:bg-pv-red/10 transition-colors disabled:opacity-50 mr-auto">
-                {deleting ? 'Eliminando...' : 'Eliminar'}
+                Eliminar
               </button>
             )}
             <button type="button" onClick={onClose}
@@ -151,5 +158,14 @@ export default function KPIModal({ open, onClose, projectId, editingKPI, onSaved
         </form>
       </div>
     </div>
+    <ConfirmDialog
+      open={confirmOpen}
+      title="¿Eliminar KPI?"
+      description="Esta acción no se puede deshacer."
+      onConfirm={handleDelete}
+      onCancel={() => setConfirmOpen(false)}
+      loading={deleting}
+    />
+    </>
   )
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { AgentProvider } from '@/lib/context/AgentContext'
 import { ProjectProvider } from '@/lib/context/ProjectContext'
+import { ToastProvider } from '@/lib/context/ToastContext'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import DashboardShell from '@/components/layout/DashboardShell'
 import DashboardFooter from '@/components/layout/DashboardFooter'
@@ -44,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const projects = Array.from(new Map(allProjects.map(p => [p.id, p])).values())
 
   return (
+    <ToastProvider>
     <ProjectProvider>
     <AgentProvider>
       <div className="min-h-screen bg-pv-navy flex flex-col">
@@ -58,5 +60,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
     </AgentProvider>
     </ProjectProvider>
+    </ToastProvider>
   )
 }

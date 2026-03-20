@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { DBProject } from '@/lib/db-types'
+import { useToast } from '@/lib/context/ToastContext'
 
 interface Props {
   open: boolean
@@ -22,6 +23,7 @@ function toInputDate(d: Date | string | null): string {
 }
 
 export default function ProjectEditModal({ open, onClose, project, onSaved }: Props) {
+  const { showToast } = useToast()
   const [title, setTitle] = useState('')
   const [type, setType] = useState('')
   const [status, setStatus] = useState('warn')
@@ -67,6 +69,7 @@ export default function ProjectEditModal({ open, onClose, project, onSaved }: Pr
       const updated = await res.json()
       onSaved(updated)
       onClose()
+      showToast('Proyecto actualizado')
     } catch {
       setError('No se pudo guardar. Intenta de nuevo.')
     } finally {

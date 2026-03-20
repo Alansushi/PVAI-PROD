@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useToast } from '@/lib/context/ToastContext'
 
 interface Props {
   open: boolean
@@ -17,6 +18,7 @@ const PROJECT_TYPES = [
 ]
 
 export default function NewProjectModal({ open, onClose, onCreated }: Props) {
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -59,6 +61,7 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
       if (res.ok) {
         onCreated()
         onClose()
+        showToast('Proyecto creado')
         setForm({ title: '', type: 'Proyecto ejecutivo', status: 'ok', startDate: '', endDate: '', nextPaymentAmount: '', nextPaymentStatus: '' })
       } else {
         setError('No se pudo crear el proyecto. Intenta de nuevo.')
