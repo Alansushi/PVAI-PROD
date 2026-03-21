@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react'
 import { redirect } from 'next/navigation'
 import type { DBProjectWithRelations } from '@/lib/db-types'
 import DashboardProjectView from '@/components/dashboard/DashboardProjectView'
-import { getCached, setCached } from '@/lib/client-cache'
+import { getCached, setCached, invalidateCache } from '@/lib/client-cache'
 
 interface Props {
   params: Promise<{ projectId: string }>
@@ -119,7 +119,7 @@ export default function DashboardProjectPage({ params }: Props) {
   useEffect(() => {
     fetch(`/api/projects/${projectId}`)
       .then(r => {
-        if (r.status === 404) { setNotFound(true); setLoading(false); return null }
+        if (r.status === 404) { invalidateCache(cacheKey); setNotFound(true); setLoading(false); return null }
         return r.json()
       })
       .then(data => {

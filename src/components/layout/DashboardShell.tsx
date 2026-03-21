@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import AgentPanel from '@/components/layout/AgentPanel'
 import DashboardNav from '@/components/layout/DashboardNav'
@@ -17,6 +18,14 @@ export default function DashboardShell({ session, orgName, sidebar, children }: 
   const pathname = usePathname()
   const isProjectPage = /^\/dashboard\/[^/]+$/.test(pathname) && pathname !== '/dashboard/inicio'
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { status } = useSession()
+
+  // Force sign-out if JWT expires while user is active in the app
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      signOut({ callbackUrl: '/login' })
+    }
+  }, [status])
 
   // Auto-close sidebar on navigation
   useEffect(() => {
