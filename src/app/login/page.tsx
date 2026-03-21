@@ -25,7 +25,15 @@ export default function LoginPage() {
           </Suspense>
 
           <p className="text-center text-[11px] text-[#8BA3B8] mt-6">
-            Al continuar, aceptas nuestros términos de servicio y política de privacidad.
+            Al continuar, aceptas nuestros{' '}
+            <a href="/terminos" target="_blank" className="text-[#2E8FC0] hover:underline">
+              términos de servicio
+            </a>{' '}
+            y{' '}
+            <a href="/aviso-privacidad" target="_blank" className="text-[#2E8FC0] hover:underline">
+              política de privacidad
+            </a>
+            .
           </p>
         </div>
 

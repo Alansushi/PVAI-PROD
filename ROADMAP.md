@@ -152,6 +152,28 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## F-Legal — Cumplimiento Legal LFPDPPP + Términos ✅ COMPLETADA
+
+### F-Legal.1 — Aviso de Privacidad (LFPDPPP) ✅
+- **Ruta:** `/aviso-privacidad` — página estática pública (SSG)
+- **Archivo:** `src/app/aviso-privacidad/page.tsx`
+- Contenido conforme LFPDPPP: identidad del responsable, datos recabados, finalidades primarias/secundarias, transferencias (Google, Supabase, Resend, Vercel), derechos ARCO, revocación, cookies, mecanismo opt-out finalidades secundarias
+- Aviso visual de revisión legal (banner ámbar) para campos pendientes de llenar con datos reales
+- **Placeholders pendientes:** `[NOMBRE_RESPONSABLE]`, `[RFC]`, `[DOMICILIO_FISCAL]`, `[EMAIL_PRIVACIDAD]`, `[TELÉFONO_CONTACTO]`, `[FECHA_VIGENCIA]`
+
+### F-Legal.2 — Términos y Condiciones ✅
+- **Ruta:** `/terminos` — página estática pública (SSG)
+- **Archivo:** `src/app/terminos/page.tsx`
+- Contenido: descripción del servicio, registro y cuenta, política de uso aceptable, planes y pagos (con placeholders de precio), política de cancelación y reembolsos (mensual sin reembolso proporcional; anual con reembolso meses no usados), período de gracia 30 días, responsabilidades del organizador, limitación de responsabilidad, propiedad intelectual, suspensión, ley aplicable (México, CDMX)
+- **Placeholders pendientes:** `[NOMBRE_RESPONSABLE]`, `[FECHA_VIGENCIA]`, `[PRECIO_PLAN_BÁSICO]`, `[PRECIO_PLAN_PRO]`
+
+### F-Legal.3 — Integración en footer y formularios ✅
+- `DashboardFooter.tsx`: links "Aviso de Privacidad" y "Términos y Condiciones" (abren en pestaña nueva)
+- `/login/page.tsx`: disclaimer con links clickeables a ambos documentos
+- `RegisterForm.tsx`: disclaimer con links antes del botón "Crear cuenta", menciona LFPDPPP explícitamente
+
+---
+
 ## FASE 5 — UX Adopción ✅ COMPLETADA
 
 ### F5.1 — Toast Notifications ✅
@@ -216,6 +238,7 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 | F5.4 | Tabs en Vista de Proyecto | ★★★★☆ | ✅ Hecho |
 | F5.5 | Empty State + Tooltips | ★★★☆☆ | ✅ Hecho |
 | F5.6 | IA flotante móvil | ★★★☆☆ | ✅ Hecho (prev.) |
+| F-Legal | Aviso Privacidad + Términos | ★★★★★ | ✅ Hecho |
 
 ---
 

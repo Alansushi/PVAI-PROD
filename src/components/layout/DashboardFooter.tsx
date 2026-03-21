@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function DashboardFooter() {
   return (
     <footer
@@ -10,9 +12,15 @@ export default function DashboardFooter() {
         <span className="text-[9px] text-pv-gray/50">v0.1.0</span>
       </div>
 
-      {/* Centro: placeholder para links futuros */}
+      {/* Centro: links legales */}
       <div className="flex items-center gap-4 text-[10px] text-pv-gray/40">
-        {/* Espacio reservado para links */}
+        <Link href="/aviso-privacidad" className="hover:text-pv-gray transition-colors" target="_blank">
+          Aviso de Privacidad
+        </Link>
+        <span>·</span>
+        <Link href="/terminos" className="hover:text-pv-gray transition-colors" target="_blank">
+          Términos y Condiciones
+        </Link>
       </div>
 
       {/* Derecha: copyright */}

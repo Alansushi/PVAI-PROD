@@ -246,6 +246,19 @@ export default function RegisterForm() {
         </p>
       )}
 
+      {/* Legal disclaimer */}
+      <p className="text-center text-[11px] text-[#8BA3B8]">
+        Al crear tu cuenta, aceptas nuestros{' '}
+        <a href="/terminos" target="_blank" className="text-[#2E8FC0] hover:underline">
+          Términos y Condiciones
+        </a>{' '}
+        y nuestro{' '}
+        <a href="/aviso-privacidad" target="_blank" className="text-[#2E8FC0] hover:underline">
+          Aviso de Privacidad
+        </a>
+        , conforme a la LFPDPPP.
+      </p>
+
       {/* Submit */}
       <button
         type="submit"
