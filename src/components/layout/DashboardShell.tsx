@@ -39,7 +39,7 @@ export default function DashboardShell({ session, orgName, sidebar, children }: 
         />
       )}
 
-      <div className={`grid grid-cols-1 lg:grid-cols-[210px_1fr]${isProjectPage ? ' lg:mr-[295px]' : ''}`}>
+      <div className={`flex-1 grid grid-cols-1 lg:grid-cols-[210px_1fr]${isProjectPage ? ' lg:mr-[295px]' : ''}`}>
         {/* Sidebar wrapper — fixed overlay on mobile, static grid column on desktop */}
         <div
           className={[

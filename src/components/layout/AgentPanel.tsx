@@ -87,7 +87,7 @@ export default function AgentPanel() {
       {/* Desktop panel — hidden on mobile */}
       <div
         className="hidden lg:flex flex-col overflow-hidden border-l border-white/[0.06]"
-        style={{ ...panelStyle, position: 'fixed', right: 0, top: 68, bottom: 0, width: 295 }}
+        style={{ ...panelStyle, position: 'fixed', right: 0, top: 68, bottom: 49, width: 295 }}
       >
         {panelContent}
       </div>

@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`dark ${dmSans.variable} ${dmMono.variable} ${playfair.variable}`}>
-      <body className="font-sans antialiased bg-[#0C1F35] text-[#F8FAFB]">
+      <body className="font-sans antialiased bg-[#0C1F35] text-[#F8FAFB]" suppressHydrationWarning>
         <SessionProvider>{children}</SessionProvider>
         <Analytics />
       </body>
