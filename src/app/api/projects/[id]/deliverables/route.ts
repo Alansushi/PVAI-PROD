@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
+import { deliverableCreateSchema } from '@/lib/schemas'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
@@ -47,16 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
-  const { name, status, meta, ownerId, ownerName, dueDate, startDate, priority, notes, position } = body
-
-  if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
-
-  const VALID_STATUS = ['ok', 'warn', 'danger']
-  const VALID_PRIORITY = ['alta', 'media', 'baja']
-  if (status && !VALID_STATUS.includes(status))
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-  if (priority && !VALID_PRIORITY.includes(priority))
-    return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
+  const parsed = deliverableCreateSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
+  }
+  const { name, status, meta, ownerId, ownerName, dueDate, startDate, priority, notes, position } = parsed.data
 
   const deliverable = await db.deliverable.create({
     data: {

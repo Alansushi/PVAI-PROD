@@ -1,7 +1,7 @@
 # pvai-next — Claude Code Instructions
 
 ## Stack
-- Next.js 14 App Router, TypeScript, Tailwind CSS
+- Next.js 16.2.1 App Router, TypeScript, Tailwind CSS
 - NextAuth v5 beta (`next-auth@5.0.0-beta.30`)
 - Prisma 5 + Supabase PostgreSQL
 - Resend v3 for emails

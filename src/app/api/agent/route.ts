@@ -23,10 +23,20 @@ Reglas:
 
 function escapeForPrompt(str: string): string {
   return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
     .replace(/\n/g, ' ')
     .replace(/\|/g, '·')
     .replace(/`/g, "'")
     .slice(0, 120)
+}
+
+function stripHtml(str: unknown): string {
+  if (typeof str !== 'string') return ''
+  return str.replace(/<[^>]*>/g, '').slice(0, 500)
 }
 
 function validateMinutaPlan(plan: unknown): { summary: string; actions: unknown[] } {
@@ -35,11 +45,19 @@ function validateMinutaPlan(plan: unknown): { summary: string; actions: unknown[
   if (typeof p.summary !== 'string') throw new Error('missing summary')
   if (!Array.isArray(p.actions)) throw new Error('actions is not array')
   return {
-    summary: p.summary.slice(0, 500),
+    summary: stripHtml(p.summary),
     actions: (p.actions as unknown[])
       .filter((a): a is Record<string, unknown> =>
         !!a && typeof a === 'object' && ['update', 'note', 'create', 'reassign'].includes((a as Record<string, unknown>).type as string)
       )
+      .map((a) => {
+        const action = a as Record<string, unknown>
+        return {
+          ...action,
+          name: stripHtml(action.name),
+          note: stripHtml(action.note),
+        }
+      })
       .slice(0, 15),
   }
 }

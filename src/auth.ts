@@ -16,10 +16,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+        const normalizedEmail = (credentials.email as string).toLowerCase()
         // Cast needed until prisma generate runs with DATABASE_URL
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const user = await (prisma.user.findUnique as any)({
-          where: { email: credentials.email as string },
+          where: { email: normalizedEmail },
         }) as { id: string; email: string; name: string | null; password: string | null } | null
         if (!user?.password) return null
         const valid = await bcrypt.compare(

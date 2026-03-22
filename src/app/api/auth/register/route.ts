@@ -2,29 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { sendWelcomeEmail } from '@/lib/email'
+import { registerSchema } from '@/lib/schemas'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, email, password, profession, profDetail, firmName, firmUrl, phone } = body
+    const { profDetail, firmUrl, phone } = body
 
-    // Validate required fields
-    if (!name || !email || !password || !profession || !firmName) {
+    const parsed = registerSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Faltan campos requeridos' },
+        { error: parsed.error.issues[0]?.message ?? 'Datos inválidos' },
         { status: 400 }
       )
     }
+    const { name, email, password, profession, firmName } = parsed.data
+    const normalizedEmail = email.toLowerCase()
 
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 8 caracteres' },
-        { status: 400 }
-      )
-    }
-
-    // Check unique email
-    const existing = await prisma.user.findUnique({ where: { email } })
+    // Check unique email (case-insensitive)
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (existing) {
       return NextResponse.json(
         { error: 'Este email ya está registrado' },
@@ -39,7 +35,7 @@ export async function POST(req: NextRequest) {
     const user = await (prisma.user.create as any)({
       data: {
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         profession,
         profDetail: profDetail || null,

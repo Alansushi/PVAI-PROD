@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { createAuditLog } from '@/lib/audit'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
 
-const ALLOWED_FIELDS = ['name', 'profession', 'profDetail', 'firmName', 'firmUrl', 'phone']
+const profileUpdateSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  profession: z.string().max(255).optional(),
+  profDetail: z.string().max(500).optional().nullable(),
+  firmName: z.string().max(255).optional(),
+  firmUrl: z.string().url('URL inválida').max(500).optional().nullable().or(z.literal('')),
+  phone: z.string().max(50).optional().nullable(),
+})
 
 export async function GET() {
   const session = await auth()
@@ -36,11 +45,16 @@ export async function PUT(req: NextRequest) {
 
   const body = await req.json()
 
-  // Only allow safe fields — never email or id
+  const parsed = profileUpdateSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
+  }
+
+  // Only allow validated fields — never email or id
   const data: Record<string, string | null> = {}
-  for (const field of ALLOWED_FIELDS) {
-    if (field in body) {
-      data[field] = body[field] ?? null
+  for (const [key, value] of Object.entries(parsed.data)) {
+    if (value !== undefined) {
+      data[key] = value ?? null
     }
   }
 
@@ -59,6 +73,15 @@ export async function PUT(req: NextRequest) {
       phone: true,
     },
   })
+
+  createAuditLog({
+    userId: session.user.id,
+    action: 'update',
+    entity: 'user',
+    entityId: session.user.id,
+    entityName: session.user.name ?? session.user.id,
+    newValue: data,
+  }).catch(() => {})
 
   return NextResponse.json(updated)
 }
