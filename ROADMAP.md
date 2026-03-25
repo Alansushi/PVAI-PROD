@@ -124,6 +124,19 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## F-Security — Seguridad DB (RLS Supabase) ✅ COMPLETADA
+
+### FS.1 — Row Level Security en todas las tablas ✅
+- **Problema:** Supabase expone automáticamente todas las tablas vía PostgREST API. Sin RLS, cualquier usuario con la `anon key` puede leer/escribir datos directamente
+- **Solución:** Habilitar RLS en las 21 tablas del schema. Sin policies permisivas → deny-by-default para PostgREST
+- **Prisma no se ve afectado:** Conecta como superuser (bypassa RLS); toda la lógica de autorización app-level en route handlers permanece igual
+- **Migración:** `prisma/migrations/20260325000000_enable_rls_all_tables/migration.sql`
+- **Tablas cubiertas:** User, Organization, OrgMember, Project, ProjectMember, Deliverable, DeliverableDependency, GanttRow, DeliverablePackage, Milestone, AgentMessage, AuditLog, Notification, ProjectNote, ProcessedMinuta, ProjectRisk, ProjectKPI, ProcessedReport, Account, Session, VerificationToken
+- **Aplicar:** SQL Editor en Supabase Dashboard (o `npx prisma migrate deploy` si DATABASE_URL configurado)
+- **Verificar:** Supabase Dashboard → Authentication → Policies → todas las tablas con RLS ON y "No policies"
+
+---
+
 ## FASE 4 — Enterprise PM 🟠 EN PROGRESO
 
 ### F4.3 — Métricas Portfolio en Vista General ✅ COMPLETADA
@@ -239,6 +252,7 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 | F5.5 | Empty State + Tooltips | ★★★☆☆ | ✅ Hecho |
 | F5.6 | IA flotante móvil | ★★★☆☆ | ✅ Hecho (prev.) |
 | F-Legal | Aviso Privacidad + Términos | ★★★★★ | ✅ Hecho |
+| F-Security | RLS en todas las tablas Supabase | ★★★★★ | ✅ Hecho |
 
 ---
 
