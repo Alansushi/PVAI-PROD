@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
-import { sendProjectInviteEmail } from '@/lib/email'
+import { sendInvitationEmail } from '@/lib/email'
 
 async function verifyProjectAccess(projectId: string, userId: string) {
   const memberships = await prisma.orgMember.findMany({ where: { userId } })
@@ -99,20 +99,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     newValue: { name, role, isExternal },
   })
 
-  if (notifyEmail) {
+  // If no userId was provided (external member), create a tokenized invitation
+  if (!userId && notifyEmail) {
     const [inviter, projectWithOrg] = await Promise.all([
       prisma.user.findUnique({ where: { id: session.user.id } }),
-      prisma.project.findUnique({
-        where: { id },
-        include: { organization: true },
-      }),
+      prisma.project.findUnique({ where: { id }, include: { organization: true } }),
     ])
-    await sendProjectInviteEmail(notifyEmail, {
-      inviteeName: name,
-      projectTitle: projectWithOrg?.title ?? 'el proyecto',
-      orgName: (projectWithOrg as { organization?: { name?: string } } | null)?.organization?.name ?? 'el despacho',
-      inviterName: inviter?.name ?? 'Un colega',
+
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7)
+
+    const invitation = await prisma.invitation.create({
+      data: {
+        email:           notifyEmail.toLowerCase(),
+        organizationId:  project.organizationId,
+        projectId:       id,
+        projectMemberId: member.id,
+        orgRole:         'member',
+        projectRole:     role,
+        expiresAt,
+        invitedById:     session.user.id,
+      },
     })
+
+    sendInvitationEmail(notifyEmail, {
+      inviteeName:  name,
+      orgName:      (projectWithOrg as { organization?: { name?: string } } | null)?.organization?.name ?? 'el despacho',
+      projectTitle: projectWithOrg?.title,
+      inviterName:  inviter?.name ?? 'Un colega',
+      token:        invitation.token,
+    }).catch(() => {})
   }
 
   return NextResponse.json(member, { status: 201 })

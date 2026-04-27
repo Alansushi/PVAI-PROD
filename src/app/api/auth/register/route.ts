@@ -7,7 +7,7 @@ import { registerSchema } from '@/lib/schemas'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { profDetail, firmUrl, phone } = body
+    const { profDetail, firmUrl, phone, invitationToken } = body
 
     const parsed = registerSchema.safeParse(body)
     if (!parsed.success) {
@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user (cast needed until prisma generate runs with DATABASE_URL)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = await (prisma.user.create as any)({
       data: {
@@ -45,7 +44,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create org from firmName
+    // Always create the user's own org
     const slug =
       firmName
         .toLowerCase()
@@ -58,16 +57,53 @@ export async function POST(req: NextRequest) {
       data: { name: firmName, slug },
     })
 
-    // Create OrgMember as admin
     await prisma.orgMember.create({
-      data: {
-        userId: user.id,
-        organizationId: org.id,
-        role: 'admin',
-      },
+      data: { userId: user.id, organizationId: org.id, role: 'admin' },
     })
 
-    // Fire-and-forget welcome email
+    // Auto-accept a pending invitation if a token was provided
+    if (invitationToken) {
+      const invitation = await prisma.invitation.findUnique({
+        where: { token: invitationToken },
+        include: { projectMember: true },
+      })
+
+      if (
+        invitation &&
+        !invitation.acceptedAt &&
+        invitation.expiresAt > new Date() &&
+        invitation.email.toLowerCase() === normalizedEmail
+      ) {
+        // Join the invited org
+        const alreadyInOrg = await prisma.orgMember.findFirst({
+          where: { userId: user.id, organizationId: invitation.organizationId },
+        })
+        if (!alreadyInOrg) {
+          await prisma.orgMember.create({
+            data: { userId: user.id, organizationId: invitation.organizationId, role: invitation.orgRole },
+          })
+        }
+
+        // Link the external ProjectMember to the new account
+        if (invitation.projectMemberId && invitation.projectMember) {
+          const alreadyInProject = await prisma.projectMember.findFirst({
+            where: { projectId: invitation.projectMember.projectId, userId: user.id },
+          })
+          if (!alreadyInProject) {
+            await prisma.projectMember.update({
+              where: { id: invitation.projectMemberId },
+              data: { userId: user.id, isExternal: false, name: user.name ?? invitation.projectMember.name },
+            })
+          }
+        }
+
+        await prisma.invitation.update({
+          where: { token: invitationToken },
+          data: { acceptedAt: new Date() },
+        })
+      }
+    }
+
     sendWelcomeEmail({ name: user.name, email: user.email }).catch(() => {})
 
     return NextResponse.json({ ok: true })

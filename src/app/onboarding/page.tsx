@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendWelcomeEmail } from '@/lib/email'
+import OnboardingInvitation from './OnboardingInvitation'
 
 export default async function OnboardingPage() {
   const session = await auth()
@@ -12,6 +13,22 @@ export default async function OnboardingPage() {
     where: { userId: session.user.id },
   })
   if (existing) redirect('/dashboard/inicio')
+
+  // Check for pending invitations for this email
+  const pendingInvitations = session.user.email
+    ? await prisma.invitation.findMany({
+        where: {
+          email:       session.user.email.toLowerCase(),
+          acceptedAt:  null,
+          expiresAt:   { gt: new Date() },
+        },
+        include: {
+          organization: { select: { name: true } },
+          invitedBy:    { select: { name: true } },
+        },
+        take: 3,
+      })
+    : []
 
   async function createOrg(formData: FormData) {
     'use server'
@@ -64,6 +81,21 @@ export default async function OnboardingPage() {
           </div>
           <div className="text-[12px] text-[#8BA3B8]">Configura tu despacho</div>
         </div>
+
+        {/* Pending invitations */}
+        {pendingInvitations.length > 0 && (
+          <div className="mb-4 flex flex-col gap-3">
+            {pendingInvitations.map((inv) => (
+              <OnboardingInvitation
+                key={inv.id}
+                token={inv.token}
+                orgName={inv.organization.name}
+                inviterName={inv.invitedBy.name}
+              />
+            ))}
+            <div className="text-[11px] text-[#4A5C6A] text-center">— o bien —</div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8">

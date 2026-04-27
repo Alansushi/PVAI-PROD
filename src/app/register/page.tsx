@@ -2,9 +2,13 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import RegisterForm from './RegisterForm'
 
-export default async function RegisterPage() {
+type Props = { searchParams: Promise<{ invitation?: string }> }
+
+export default async function RegisterPage({ searchParams }: Props) {
   const session = await auth()
   if (session) redirect('/dashboard/inicio')
+
+  const { invitation } = await searchParams
 
   return (
     <div className="min-h-screen bg-[#0C1F35] flex items-center justify-center px-4 py-12">
@@ -21,10 +25,12 @@ export default async function RegisterPage() {
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8">
           <h1 className="text-[20px] font-bold text-white mb-1">Crear cuenta</h1>
           <p className="text-[13px] text-[#8BA3B8] mb-8">
-            Registra tu despacho y empieza a gestionar proyectos.
+            {invitation
+              ? 'Crea tu cuenta para aceptar la invitación y unirte al equipo.'
+              : 'Registra tu despacho y empieza a gestionar proyectos.'}
           </p>
 
-          <RegisterForm />
+          <RegisterForm invitationToken={invitation} />
 
           <p className="text-center text-[11px] text-[#8BA3B8] mt-6">
             Al continuar, aceptas nuestros términos de servicio y política de privacidad.

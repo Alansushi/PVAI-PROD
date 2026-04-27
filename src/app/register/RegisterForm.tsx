@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { signIn } from 'next-auth/react'
 
 const PROFESSIONS = [
@@ -20,7 +20,11 @@ const PROF_DETAILS = [
   { value: 'otro', label: 'Otro' },
 ]
 
-export default function RegisterForm() {
+interface Props {
+  invitationToken?: string
+}
+
+export default function RegisterForm({ invitationToken }: Props) {
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -34,10 +38,32 @@ export default function RegisterForm() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [domainOrgs, setDomainOrgs] = useState<{ name: string }[]>([])
+  const domainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
+    if (field === 'email') {
+      if (domainTimer.current) clearTimeout(domainTimer.current)
+      const domain = value.split('@')[1]
+      if (domain && domain.includes('.')) {
+        domainTimer.current = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/auth/check-domain?domain=${encodeURIComponent(domain)}`)
+            if (res.ok) {
+              const data = await res.json()
+              setDomainOrgs(data.orgs ?? [])
+            }
+          } catch { /* silent */ }
+        }, 600)
+      } else {
+        setDomainOrgs([])
+      }
+    }
   }
+
+  // Clean up timer on unmount
+  useEffect(() => () => { if (domainTimer.current) clearTimeout(domainTimer.current) }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -66,6 +92,7 @@ export default function RegisterForm() {
           firmName: form.firmName,
           firmUrl: form.firmUrl || undefined,
           phone: form.phone || undefined,
+          invitationToken: invitationToken || undefined,
         }),
       })
 
@@ -238,6 +265,15 @@ export default function RegisterForm() {
           </div>
         </div>
       </div>
+
+      {/* Domain match banner */}
+      {domainOrgs.length > 0 && !invitationToken && (
+        <div className="text-[12px] text-[#E09B3D] bg-[#E09B3D]/10 border border-[#E09B3D]/20 rounded-xl px-4 py-3 leading-relaxed">
+          <strong>Nota:</strong> Ya hay miembros con ese dominio en{' '}
+          {domainOrgs.map((o) => o.name).join(', ')}. Pídeles que te inviten
+          directamente para unirte a su espacio de trabajo.
+        </div>
+      )}
 
       {/* Error */}
       {error && (

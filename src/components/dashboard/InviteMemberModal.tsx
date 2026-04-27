@@ -156,6 +156,14 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
                 <span className="text-[9px] font-bold text-pv-accent ml-auto flex-shrink-0">Cuenta registrada ✓</span>
               </div>
             )}
+            {/* Not found + email entered → invitation will be sent */}
+            {!foundUser && !lookingUp && form.email.includes('@') && form.email.includes('.') && (
+              <div className="flex items-center gap-1.5 mt-1.5 px-3 py-2 bg-[#E09B3D]/10 border border-[#E09B3D]/30 rounded-lg">
+                <span className="text-[11px] text-[#E09B3D] leading-tight">
+                  Sin cuenta en PVAI — se enviará un email de invitación con enlace de acceso
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Nombre */}
