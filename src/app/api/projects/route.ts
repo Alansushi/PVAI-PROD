@@ -20,7 +20,7 @@ export async function GET() {
 
   const projectsList = await Promise.all(
     memberships.map(m => {
-      if (m.role === 'guest') {
+      if (m.role !== 'admin') {
         return prisma.project.findMany({
           where: {
             organizationId: m.organizationId,

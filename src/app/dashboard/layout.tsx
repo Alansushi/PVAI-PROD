@@ -21,10 +21,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isOnlyGuest = memberships.every(m => m.role === 'guest')
   const primaryMembership = memberships.find(m => m.role !== 'guest') ?? memberships[0]
 
-  // Guests only see projects they're assigned to
+  // Only admins see all org projects; everyone else only sees assigned projects
   const projectsList = await Promise.all(
     memberships.map(m => {
-      if (m.role === 'guest') {
+      if (m.role !== 'admin') {
         return prisma.project.findMany({
           where: {
             organizationId: m.organizationId,
