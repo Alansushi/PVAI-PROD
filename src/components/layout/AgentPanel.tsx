@@ -166,86 +166,88 @@ export default function AgentPanel() {
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
         </button>
-        {/* Auto-refresh button */}
-        {agentMode !== 'solo_cuando_lo_pida' && (
-          <div className="relative">
-            <button
-              ref={arButtonRef}
-              onClick={() => setArPopoverOpen(p => !p)}
-              className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative ${arEnabled ? 'text-pv-accent' : ''}`}
-              title={arEnabled ? `Auto-refresh: ${arInterval}m` : 'Configurar auto-refresh'}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              {arEnabled && (
-                <span className="absolute -top-1 -right-1 text-[7px] font-bold text-pv-accent leading-none">
-                  {arInterval}
-                </span>
-              )}
-            </button>
-            {arPopoverOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setArPopoverOpen(false)} />
-                <div
-                  className="absolute right-0 top-6 z-50 rounded-xl border border-white/10 shadow-xl p-3 w-44"
-                  style={{ background: '#0D2035' }}
-                >
-                  {/* Agent mode */}
-                  <p className="text-[9px] text-pv-gray mb-1.5 uppercase tracking-[0.5px]">Modo del agente</p>
-                  <div className="flex rounded-lg overflow-hidden border border-white/10 mb-3">
-                    {(['solo_cuando_lo_pida', 'equilibrado', 'proactivo'] as AgentMode[]).map((mode) => {
-                      const labels: Record<AgentMode, string> = {
-                        solo_cuando_lo_pida: 'Manual',
-                        equilibrado: 'Equilibrado',
-                        proactivo: 'Proactivo',
-                      }
-                      return (
-                        <button
-                          key={mode}
-                          onClick={() => handleModeChange(mode)}
-                          className={`flex-1 text-[9px] py-1 transition-colors ${
-                            agentMode === mode
-                              ? 'bg-pv-accent/20 text-pv-accent'
-                              : 'text-pv-gray hover:text-white/70'
-                          }`}
-                        >
-                          {labels[mode]}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <label className="flex items-center gap-2 mb-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={arEnabled}
-                      onChange={e => handleArToggle(e.target.checked)}
-                      className="accent-pv-accent"
-                    />
-                    <span className="text-[11px] font-semibold text-pv-white">Auto-refresh</span>
-                  </label>
-                  <p className="text-[9px] text-pv-gray mb-2 uppercase tracking-wide">Intervalo</p>
-                  <div className="grid grid-cols-4 gap-1">
-                    {AUTO_REFRESH_OPTIONS.map(min => (
+        {/* Auto-refresh / mode button */}
+        <div className="relative">
+          <button
+            ref={arButtonRef}
+            onClick={() => setArPopoverOpen(p => !p)}
+            className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative ${arEnabled && agentMode !== 'solo_cuando_lo_pida' ? 'text-pv-accent' : ''}`}
+            title="Modo del agente y auto-refresh"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {arEnabled && agentMode !== 'solo_cuando_lo_pida' && (
+              <span className="absolute -top-1 -right-1 text-[7px] font-bold text-pv-accent leading-none">
+                {arInterval}
+              </span>
+            )}
+          </button>
+          {arPopoverOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setArPopoverOpen(false)} />
+              <div
+                className="absolute right-0 top-6 z-50 rounded-xl border border-white/10 shadow-xl p-3 w-44"
+                style={{ background: '#0D2035' }}
+              >
+                {/* Agent mode */}
+                <p className="text-[9px] text-pv-gray mb-1.5 uppercase tracking-[0.5px]">Modo del agente</p>
+                <div className="flex rounded-lg overflow-hidden border border-white/10 mb-3">
+                  {(['solo_cuando_lo_pida', 'equilibrado', 'proactivo'] as AgentMode[]).map((mode) => {
+                    const labels: Record<AgentMode, string> = {
+                      solo_cuando_lo_pida: 'Manual',
+                      equilibrado: 'Equilibrado',
+                      proactivo: 'Proactivo',
+                    }
+                    return (
                       <button
-                        key={min}
-                        onClick={() => handleArInterval(min)}
-                        className={`text-[10px] rounded-md py-1 font-semibold transition-colors ${
-                          arInterval === min
-                            ? 'bg-pv-accent text-white'
-                            : 'bg-white/[0.06] text-pv-gray hover:bg-white/[0.12]'
+                        key={mode}
+                        onClick={() => handleModeChange(mode)}
+                        className={`flex-1 text-[9px] py-1 transition-colors ${
+                          agentMode === mode
+                            ? 'bg-pv-accent/20 text-pv-accent'
+                            : 'text-pv-gray hover:text-white/70'
                         }`}
                       >
-                        {min}m
+                        {labels[mode]}
                       </button>
-                    ))}
-                  </div>
+                    )
+                  })}
                 </div>
-              </>
-            )}
-          </div>
-        )}
+                {agentMode !== 'solo_cuando_lo_pida' && (
+                  <>
+                    <label className="flex items-center gap-2 mb-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={arEnabled}
+                        onChange={e => handleArToggle(e.target.checked)}
+                        className="accent-pv-accent"
+                      />
+                      <span className="text-[11px] font-semibold text-pv-white">Auto-refresh</span>
+                    </label>
+                    <p className="text-[9px] text-pv-gray mb-2 uppercase tracking-wide">Intervalo</p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {AUTO_REFRESH_OPTIONS.map(min => (
+                        <button
+                          key={min}
+                          onClick={() => handleArInterval(min)}
+                          className={`text-[10px] rounded-md py-1 font-semibold transition-colors ${
+                            arInterval === min
+                              ? 'bg-pv-accent text-white'
+                              : 'bg-white/[0.06] text-pv-gray hover:bg-white/[0.12]'
+                          }`}
+                        >
+                          {min}m
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         {/* History button */}
         <button
           onClick={() => setHistoryOpen(true)}
