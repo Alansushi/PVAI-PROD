@@ -1,12 +1,6 @@
 'use client'
 
-function fmtRelative(date: Date): string {
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (diff < 60) return 'recién'
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`
-  return `hace ${Math.floor(diff / 86400)} d`
-}
+import { useRelativeTime } from '@/lib/hooks/useRelativeTime'
 
 interface Props {
   status: 'idle' | 'thinking' | 'stale'
@@ -15,6 +9,8 @@ interface Props {
 }
 
 export default function AgentStatusBar({ status, lastRefreshed, onRefresh }: Props) {
+  const refreshedLabel = useRelativeTime(lastRefreshed)
+
   if (status === 'thinking') {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] text-pv-teal">
@@ -41,12 +37,11 @@ export default function AgentStatusBar({ status, lastRefreshed, onRefresh }: Pro
   }
 
   // idle
-  const timeLabel = lastRefreshed ? fmtRelative(lastRefreshed) : 'recién'
   return (
     <span className="inline-flex items-center gap-1 text-[10px] text-pv-teal">
       <span className="w-1.5 h-1.5 rounded-full bg-pv-teal" />
       <span>
-        Listo · {timeLabel}
+        Listo · {refreshedLabel || 'recién'}
       </span>
     </span>
   )

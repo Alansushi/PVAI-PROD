@@ -3,17 +3,10 @@
 import DOMPurify from 'isomorphic-dompurify'
 import parse from 'html-react-parser'
 import type { AgentCard as AgentCardType, AgentCardAction, AgentCardType as CardType } from '@/lib/types'
+import { useRelativeTime } from '@/lib/hooks/useRelativeTime'
 
 const ALLOWED_TAGS = ['br', 'strong', 'span', 'em', 'ul', 'li', 'p']
 const ALLOWED_ATTR = ['class']
-
-function fmtRelative(date: Date): string {
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000)
-  if (diff < 60) return 'hace un momento'
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`
-  return `hace ${Math.floor(diff / 86400)} d`
-}
 
 const TYPE_CONFIG: Record<CardType, { label: string; icon: string; border: string; bg: string; text: string }> = {
   alerta: {
@@ -62,6 +55,7 @@ interface Props {
 }
 
 export default function AgentCard({ card, onAction, onDismiss }: Props) {
+  const timeLabel = useRelativeTime(card.timestamp)
   const safeHtml = DOMPurify.sanitize(card.html, { ALLOWED_TAGS, ALLOWED_ATTR })
 
   // User messages: render exactly like AgentMessage.tsx
@@ -71,7 +65,7 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
         <div className="msg-content system">
           {parse(safeHtml)}
         </div>
-        <div className="text-[9px] text-pv-gray mt-1">{fmtRelative(card.timestamp)}</div>
+        <div className="text-[9px] text-pv-gray mt-1">{timeLabel}</div>
       </div>
     )
   }
@@ -92,7 +86,7 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
           <span>{cfg.label}</span>
         </span>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-pv-gray">{fmtRelative(card.timestamp)}</span>
+          <span className="text-[9px] text-pv-gray">{timeLabel}</span>
           {onDismiss && (
             <button
               onClick={() => onDismiss(card.id)}
