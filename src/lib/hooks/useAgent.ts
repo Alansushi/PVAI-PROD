@@ -6,7 +6,7 @@ import { AgentPrompt, MinutaPlan } from '@/lib/agent-prompts'
 import type { AgentCardAction } from '@/lib/types'
 
 export function useAgent(projectId: string) {
-  const { addCard, initCards, setTyping, setProcessing, dismissCard } = useAgentContext()
+  const { addCard, initCards, setTyping, setProcessing, dismissCard, updateCardUndone } = useAgentContext()
 
   const askAgent = useCallback(async (agentPrompt: AgentPrompt) => {
     const prompt = agentPrompt.prompt
@@ -100,27 +100,51 @@ export function useAgent(projectId: string) {
     } catch {}
   }, [projectId, initCards])
 
-  const executeCardAction = useCallback(async (action: AgentCardAction): Promise<boolean> => {
+  const executeCardAction = useCallback(async (
+    action: AgentCardAction,
+    cardId?: string,
+    isDbCard?: boolean
+  ): Promise<boolean> => {
     const payload = action.payload as Record<string, unknown> | undefined
     if (!payload) return true
 
     try {
+      let beforeState: Record<string, unknown> | null = null
+      let success = false
+      let createdId: string | null = null
+
       if (action.actionType === 'update' || action.actionType === 'reassign') {
         const deliverableId = payload.id as string
         if (!deliverableId) return false
+
+        // Capture before state for undo
+        if (isDbCard && cardId) {
+          const current = await fetch(`/api/projects/${projectId}/deliverables/${deliverableId}`)
+          if (current.ok) {
+            const d = await current.json()
+            const del = d.deliverable ?? d
+            beforeState = {
+              status: del.status,
+              dueDate: del.dueDate,
+              priority: del.priority,
+              ownerName: del.ownerName,
+            }
+          }
+        }
+
         const body: Record<string, unknown> = {}
         const changes = payload.changes as Record<string, unknown> | undefined
         if (changes?.status) body.status = changes.status
         if (changes?.dueDate) body.dueDate = changes.dueDate
         if (payload.ownerName) body.ownerName = payload.ownerName
+
         const res = await fetch(`/api/projects/${projectId}/deliverables/${deliverableId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-        return res.ok
-      }
-      if (action.actionType === 'create') {
+        success = res.ok
+      } else if (action.actionType === 'create') {
         const res = await fetch(`/api/projects/${projectId}/deliverables`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -132,23 +156,57 @@ export function useAgent(projectId: string) {
             dueDate: payload.dueDate,
           }),
         })
-        return res.ok
+        success = res.ok
+        if (res.ok) {
+          const data = await res.json()
+          createdId = data.deliverable?.id ?? data.id ?? null
+          if (createdId) beforeState = { createdId }
+        }
+      } else {
+        // 'note', 'navigate', 'dismiss' — no mutation
+        return true
       }
-      return true // 'note', 'navigate', 'dismiss' — no mutation needed
+
+      // Persist beforeState to DB for undo (only for DB-backed cards)
+      if (success && isDbCard && cardId) {
+        fetch(`/api/projects/${projectId}/agent-messages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId: cardId, executed: true, beforeState }),
+        }).catch(() => {})
+      }
+
+      return success
     } catch {
       return false
     }
   }, [projectId])
 
+  const undoCardAction = useCallback(async (messageId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/agent-messages`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, action: 'undo' }),
+      })
+      if (res.ok) {
+        updateCardUndone(messageId)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }, [projectId, updateCardUndone])
+
   const dismissCardServer = useCallback(async (cardId: string) => {
-    dismissCard(cardId) // update local state immediately
-    // persist to DB non-blocking
+    dismissCard(cardId)
     fetch(`/api/projects/${projectId}/agent-messages`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageId: cardId }),
+      body: JSON.stringify({ messageId: cardId, dismissed: true }),
     }).catch(() => {})
   }, [projectId, dismissCard])
 
-  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory, executeCardAction, dismissCardServer }
+  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory, executeCardAction, undoCardAction, dismissCardServer }
 }

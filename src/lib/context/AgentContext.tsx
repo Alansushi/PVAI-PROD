@@ -11,6 +11,7 @@ interface AgentContextValue {
   attachedFiles: string[]
   addCard: (html: string, role?: 'agent' | 'user', cardType?: AgentCardType, actions?: AgentCardAction[]) => void
   dismissCard: (id: string) => void
+  updateCardUndone: (id: string) => void
   setTyping: (v: boolean) => void
   setProcessing: (text: string | false) => void
   addFile: (name: string) => void
@@ -24,6 +25,8 @@ interface AgentContextValue {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    executed?: boolean
+    undone?: boolean
   }>) => void
   collapsed: boolean
   setCollapsed: (v: boolean) => void
@@ -66,6 +69,10 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     setCards(prev => prev.map(c => c.id === id ? { ...c, dismissed: true } : c))
   }, [])
 
+  const updateCardUndone = useCallback((id: string) => {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, undone: true } : c))
+  }, [])
+
   const setTyping = useCallback((v: boolean) => {
     setIsTyping(v)
     setAgentStatusState(v ? 'thinking' : 'idle')
@@ -92,6 +99,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    executed?: boolean
+    undone?: boolean
   }>) => {
     setCards(msgs.map(m => ({
       id: m.id,
@@ -101,6 +110,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       cardType: (m.cardType as AgentCardType) ?? 'insight',
       actions: Array.isArray(m.actions) ? (m.actions as AgentCardAction[]) : undefined,
       dismissed: m.dismissed ?? false,
+      isDbCard: true,
+      undone: m.undone ?? false,
     })))
   }, [])
 
@@ -111,7 +122,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   return (
     <AgentContext.Provider value={{
       cards, isTyping, isProcessing, processingText, attachedFiles,
-      addCard, dismissCard, setTyping, setProcessing,
+      addCard, dismissCard, updateCardUndone, setTyping, setProcessing,
       addFile, removeFile, clearFiles, initCards,
       collapsed, setCollapsed,
       lastRefreshed, setLastRefreshed,

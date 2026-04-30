@@ -7,10 +7,16 @@ import type { AgentCardAction } from '@/lib/types'
 import AgentCard from './AgentCard'
 import DryRunModal from './DryRunModal'
 
+interface DryRunState {
+  action: AgentCardAction
+  cardId: string
+  isDbCard: boolean
+}
+
 export default function AgentMessages() {
   const { cards } = useAgentContext()
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [dryRunAction, setDryRunAction] = useState<AgentCardAction | null>(null)
+  const [dryRunState, setDryRunState] = useState<DryRunState | null>(null)
 
   const params = useParams()
   const projectId = (params?.projectId as string) ?? ''
@@ -29,18 +35,24 @@ export default function AgentMessages() {
           key={card.id}
           card={card}
           onDismiss={dismissCardServer}
-          onAction={setDryRunAction}
+          onAction={(action) => setDryRunState({
+            action,
+            cardId: card.id,
+            isDbCard: !!card.isDbCard,
+          })}
         />
       ))}
       <div ref={bottomRef} />
       <DryRunModal
-        open={!!dryRunAction}
-        action={dryRunAction}
+        open={!!dryRunState}
+        action={dryRunState?.action ?? null}
         projectId={projectId}
         onConfirm={async () => {
-          if (dryRunAction) await executeCardAction(dryRunAction)
+          if (dryRunState) {
+            await executeCardAction(dryRunState.action, dryRunState.cardId, dryRunState.isDbCard)
+          }
         }}
-        onClose={() => setDryRunAction(null)}
+        onClose={() => setDryRunState(null)}
       />
     </div>
   )

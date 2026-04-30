@@ -119,6 +119,23 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
   },
 ]
 
+const CONTEXT_MAP: Record<string, AgentPromptType[]> = {
+  riesgos:  ['sugerir_riesgos', 'bloqueados', 'riesgos', 'prediccion', 'velocidad'],
+  minutas:  ['resumen_ejecutivo', 'avance', 'siguiente_entrega', 'tiempo'],
+  analisis: ['resumen_ejecutivo', 'reporte_semanal', 'avance', 'velocidad', 'prediccion'],
+  tablero:  ['velocidad', 'prediccion', 'avance', 'bloqueados', 'tiempo'],
+  inicio:   ['bloqueados', 'resumen_ejecutivo', 'balancear_carga', 'prediccion'],
+}
+
+export function getContextualChips(pathname: string): AgentPrompt[] {
+  const segment = Object.keys(CONTEXT_MAP).find(key => pathname.includes(`/${key}`))
+  if (!segment) return AGENT_PROMPTS
+  const ids = CONTEXT_MAP[segment]
+  const ordered = ids.map(id => AGENT_PROMPTS.find(p => p.id === id)).filter(Boolean) as AgentPrompt[]
+  const rest = AGENT_PROMPTS.filter(p => !ids.includes(p.id))
+  return [...ordered, ...rest]
+}
+
 export const PROMPT_CATEGORIES: Record<AgentPrompt['category'], string> = {
   analisis: 'Análisis',
   paquetes: 'Paquetes',
