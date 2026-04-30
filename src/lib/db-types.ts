@@ -8,6 +8,7 @@ export interface DBUser {
   image: string | null
   createdAt: Date
   updatedAt: Date
+  agentMode: string
 }
 
 export interface DBOrganization {
@@ -195,5 +196,30 @@ export interface DBProjectWithRelations extends DBProject {
   deliverables: DBDeliverable[]
   members: DBProjectMember[]
   ganttRows: DBGanttRow[]
+}
+
+export interface DBAgentMessage {
+  id: string
+  projectId: string | null
+  userId: string | null
+  role: string
+  content: string
+  cardType: string | null
+  actions: unknown | null
+  dismissed: boolean
+  executed: boolean
+  undone: boolean
+  beforeState: unknown | null
+  reasoning: string | null
+  createdAt: Date
+}
+
+export interface DBUserDailySummary {
+  id: string
+  userId: string
+  date: string
+  content: string
+  dismissed: boolean
+  createdAt: Date
 }
 

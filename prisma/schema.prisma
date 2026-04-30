@@ -22,6 +22,7 @@ model User {
   phone         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  agentMode     String    @default("equilibrado")
 
   memberships           OrgMember[]
   accounts              Account[]
@@ -36,6 +37,7 @@ model User {
   projectNotes          ProjectNote[]
   minutas               ProcessedMinuta[]
   invitationsSent       Invitation[]   @relation("InvitationsSent")
+  dailySummaries        UserDailySummary[]
 }
 
 model Organization {
@@ -221,6 +223,7 @@ model AgentMessage {
   executed    Boolean  @default(false)
   undone      Boolean  @default(false)
   beforeState Json?
+  reasoning   String?
   createdAt   DateTime @default(now())
 
   project   Project? @relation(fields: [projectId], references: [id])
@@ -258,6 +261,20 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+}
+
+model UserDailySummary {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // "YYYY-MM-DD" — enforces one per user per day
+  content   String
+  dismissed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
   @@index([userId])
 }
 
