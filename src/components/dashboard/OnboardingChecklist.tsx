@@ -29,6 +29,12 @@ const STEPS = [
     title: 'Usa el Agente IA',
     description: 'Abre el panel de IA y elige una acción rápida.',
   },
+  {
+    id: 'agent_composer',
+    icon: '⚡',
+    title: 'Copiloto accionable',
+    description: 'Usa el composer del panel IA — escribe una pregunta o elige un chip para obtener análisis con acciones ejecutables.',
+  },
 ]
 
 export default function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {

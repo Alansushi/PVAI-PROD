@@ -215,6 +215,9 @@ model AgentMessage {
   userId    String?
   role      String
   content   String
+  cardType  String?
+  actions   Json?
+  dismissed Boolean  @default(false)
   createdAt DateTime @default(now())
 
   project   Project? @relation(fields: [projectId], references: [id])
