@@ -25,8 +25,13 @@ export async function PATCH(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const { agentMode } = body
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  const { agentMode } = body as { agentMode?: string }
 
   if (!agentMode || !VALID_AGENT_MODES.includes(agentMode)) {
     return NextResponse.json(
