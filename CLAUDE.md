@@ -7,6 +7,10 @@
 - Resend v3 for emails
 - Node.js 18 (WSL2)
 
+## UX Audit
+Auditoría UX completa disponible en `docs/audit/Auditoria-Proyecto-Vivo.html`.
+Ver `AGENTS.md` para contexto completo de la barra del Agente IA.
+
 ## Reglas críticas
 - Usar `src/lib/db-types.ts` para tipos hasta que `prisma generate` produzca los tipos oficiales
 - Cast necesario: `prisma.model.findMany(...) as unknown as DBType[]`
