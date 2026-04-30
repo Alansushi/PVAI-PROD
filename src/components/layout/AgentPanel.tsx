@@ -9,6 +9,7 @@ import AgentComposer from '@/components/agent/AgentComposer'
 import AgentStatusBar from '@/components/agent/AgentStatusBar'
 import { useState, useEffect } from 'react'
 import DBMinutaModal from '@/components/dashboard/DBMinutaModal'
+import AgentHistoryDrawer from '@/components/agent/AgentHistoryDrawer'
 
 export default function AgentPanel() {
   const params = useParams()
@@ -28,6 +29,7 @@ export default function AgentPanel() {
   const { askAgent, sendFree, refreshHistory } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -78,6 +80,17 @@ export default function AgentPanel() {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </button>
+        {/* History button */}
+        <button
+          onClick={() => setHistoryOpen(true)}
+          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5"
+          title="Historial del agente"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
         </button>
         {/* Collapse toggle */}
@@ -186,6 +199,12 @@ export default function AgentPanel() {
         open={minutaOpen}
         onClose={() => setMinutaOpen(false)}
         projectId={projectId}
+      />
+
+      <AgentHistoryDrawer
+        open={historyOpen}
+        projectId={projectId}
+        onClose={() => setHistoryOpen(false)}
       />
     </>
   )
