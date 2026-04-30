@@ -6,24 +6,30 @@ import { AGENT_PROMPTS, AgentPrompt } from '@/lib/agent-prompts'
 interface Props {
   onSend: (text: string) => void
   onChip: (prompt: AgentPrompt) => void
+  contextChips?: AgentPrompt[]
+  onExpandChat?: () => void
 }
 
-export default function AgentComposer({ onSend, onChip }: Props) {
+export default function AgentComposer({ onSend, onChip, contextChips, onExpandChat }: Props) {
   const [text, setText] = useState('')
   const [chipOffset, setChipOffset] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const chipSource = contextChips && contextChips.length > 0 ? contextChips : AGENT_PROMPTS
+
   // Rotate chips every 8 seconds
   useEffect(() => {
+    setChipOffset(0)
     const id = setInterval(() => {
-      setChipOffset(o => (o + 1) % AGENT_PROMPTS.length)
+      setChipOffset(o => (o + 1) % chipSource.length)
     }, 8000)
     return () => clearInterval(id)
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chipSource.length])
 
   // Get 3 chips with wrap-around
   const visibleChips = [0, 1, 2].map(
-    i => AGENT_PROMPTS[(chipOffset + i) % AGENT_PROMPTS.length]
+    i => chipSource[(chipOffset + i) % chipSource.length]
   )
 
   function handleSend() {
@@ -39,6 +45,11 @@ export default function AgentComposer({ onSend, onChip }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.metaKey && e.key === 'Enter') {
+      e.preventDefault()
+      onExpandChat?.()
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -85,6 +96,9 @@ export default function AgentComposer({ onSend, onChip }: Props) {
           </svg>
         </button>
       </div>
+      {onExpandChat && (
+        <p className="text-[8.5px] text-pv-gray/40 mt-1 text-right">⌘+Enter para chat expandido</p>
+      )}
     </div>
   )
 }

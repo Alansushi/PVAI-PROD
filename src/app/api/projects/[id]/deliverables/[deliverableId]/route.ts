@@ -32,6 +32,18 @@ async function verifyDeliverableAccess(deliverableId: string, projectId: string,
   return { deliverable, projectTitle: project.title }
 }
 
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; deliverableId: string }> }
+) {
+  const session = await auth()
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id, deliverableId } = await params
+  const result = await verifyDeliverableAccess(deliverableId, id, session.user.id)
+  if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json({ deliverable: result.deliverable })
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; deliverableId: string }> }
