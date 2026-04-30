@@ -3,9 +3,10 @@
 import { useCallback } from 'react'
 import { useAgentContext } from '@/lib/context/AgentContext'
 import { AgentPrompt, MinutaPlan } from '@/lib/agent-prompts'
+import type { AgentCardAction } from '@/lib/types'
 
 export function useAgent(projectId: string) {
-  const { addCard, initCards, setTyping, setProcessing } = useAgentContext()
+  const { addCard, initCards, setTyping, setProcessing, dismissCard } = useAgentContext()
 
   const askAgent = useCallback(async (agentPrompt: AgentPrompt) => {
     const prompt = agentPrompt.prompt
@@ -99,5 +100,55 @@ export function useAgent(projectId: string) {
     } catch {}
   }, [projectId, initCards])
 
-  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory }
+  const executeCardAction = useCallback(async (action: AgentCardAction): Promise<boolean> => {
+    const payload = action.payload as Record<string, unknown> | undefined
+    if (!payload) return true
+
+    try {
+      if (action.actionType === 'update' || action.actionType === 'reassign') {
+        const deliverableId = payload.id as string
+        if (!deliverableId) return false
+        const body: Record<string, unknown> = {}
+        const changes = payload.changes as Record<string, unknown> | undefined
+        if (changes?.status) body.status = changes.status
+        if (changes?.dueDate) body.dueDate = changes.dueDate
+        if (payload.ownerName) body.ownerName = payload.ownerName
+        const res = await fetch(`/api/projects/${projectId}/deliverables/${deliverableId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        return res.ok
+      }
+      if (action.actionType === 'create') {
+        const res = await fetch(`/api/projects/${projectId}/deliverables`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: payload.name,
+            status: payload.status ?? 'warn',
+            priority: payload.priority ?? 'media',
+            ownerName: payload.ownerName,
+            dueDate: payload.dueDate,
+          }),
+        })
+        return res.ok
+      }
+      return true // 'note', 'navigate', 'dismiss' — no mutation needed
+    } catch {
+      return false
+    }
+  }, [projectId])
+
+  const dismissCardServer = useCallback(async (cardId: string) => {
+    dismissCard(cardId) // update local state immediately
+    // persist to DB non-blocking
+    fetch(`/api/projects/${projectId}/agent-messages`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: cardId }),
+    }).catch(() => {})
+  }, [projectId, dismissCard])
+
+  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory, executeCardAction, dismissCardServer }
 }
