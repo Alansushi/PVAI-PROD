@@ -325,6 +325,7 @@ export default function AgentPanel() {
         open={chatModalOpen}
         onClose={() => setChatModalOpen(false)}
         projectId={projectId}
+        view={currentView}
       />
     </>
   )
