@@ -37,7 +37,7 @@ export default function DailySummaryBanner() {
         const getRes = await fetch(`/api/dashboard/daily-summary?date=${clientDate}`)
         if (!getRes.ok) { setReady(true); return }
 
-        const data: DBUserDailySummary | null = await getRes.json()
+        const { summary: data }: { summary: DBUserDailySummary | null } = await getRes.json()
 
         // 2. Already dismissed — stay hidden
         if (data?.dismissed) { setReady(true); return }
@@ -58,7 +58,7 @@ export default function DailySummaryBanner() {
         })
         if (!postRes.ok) { setReady(true); return }
 
-        const created: DBUserDailySummary | null = await postRes.json()
+        const { summary: created }: { summary: DBUserDailySummary | null } = await postRes.json()
         if (created) {
           setSummary(created)
           signalTour()
