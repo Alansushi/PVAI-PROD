@@ -106,6 +106,15 @@ export default function AgentPanel() {
 
   const contextChips = getContextualChips(pathname ?? '')
 
+  function resolveView(path: string): string {
+    if (path.includes('/tablero')) return 'kanban'
+    if (path.includes('/cronograma')) return 'cronograma'
+    if (path.includes('/riesgos')) return 'riesgos'
+    if (path.includes('/analisis')) return 'analisis'
+    return 'default'
+  }
+  const currentView = resolveView(pathname ?? '')
+
   const panelContent = (
     <>
       {/* Header */}
@@ -222,8 +231,8 @@ export default function AgentPanel() {
       )}
 
       <AgentComposer
-        onSend={(text) => sendFree(text, [])}
-        onChip={askAgent}
+        onSend={(text) => sendFree(text, [], currentView)}
+        onChip={(prompt) => askAgent(prompt, currentView)}
         contextChips={contextChips}
         onExpandChat={() => setChatModalOpen(true)}
       />

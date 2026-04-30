@@ -8,7 +8,7 @@ import type { AgentCardAction } from '@/lib/types'
 export function useAgent(projectId: string) {
   const { addCard, initCards, setTyping, setProcessing, dismissCard, updateCardUndone } = useAgentContext()
 
-  const askAgent = useCallback(async (agentPrompt: AgentPrompt) => {
+  const askAgent = useCallback(async (agentPrompt: AgentPrompt, view?: string) => {
     const prompt = agentPrompt.prompt
     addCard(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
     setTyping(true)
@@ -16,7 +16,7 @@ export function useAgent(projectId: string) {
       const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, message: prompt, type: agentPrompt.id }),
+        body: JSON.stringify({ projectId, message: prompt, type: agentPrompt.id, view }),
       })
       const data = await res.json()
       addCard(
@@ -31,7 +31,7 @@ export function useAgent(projectId: string) {
     }
   }, [projectId, addCard, setTyping])
 
-  const sendFree = useCallback(async (text: string, files: string[]) => {
+  const sendFree = useCallback(async (text: string, files: string[], view?: string) => {
     let msgHtml = `<strong>Tú:</strong> ${text || '(archivo adjunto)'}`
     if (files.length > 0) {
       msgHtml += `<div style="margin-top:4px;">${files.map(f => `<div class="msg-file">📎 ${f}</div>`).join('')}</div>`
@@ -42,7 +42,7 @@ export function useAgent(projectId: string) {
       const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, message: text || '(archivo adjunto)', type: 'free' }),
+        body: JSON.stringify({ projectId, message: text || '(archivo adjunto)', type: 'free', view }),
       })
       const data = await res.json()
       addCard(

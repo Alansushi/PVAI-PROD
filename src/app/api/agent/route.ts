@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { AgentCardType } from '@/lib/types'
+import { VIEW_FOCUS } from '@/lib/agent-prompts'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -150,10 +151,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { projectId, message, type } = body as {
+  const { projectId, message, type, view } = body as {
     projectId: string
     message: string
     type?: string
+    view?: string
   }
 
   if (!projectId || !message) {
@@ -388,6 +390,11 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
   }
 
   try {
+    const focusLine = view ? (VIEW_FOCUS[view] ?? VIEW_FOCUS.default) : ''
+    const userContent = focusLine
+      ? `[Vista actual: ${focusLine}]\n\n${buildProjectContext(project)}\n\nPregunta/instrucción: ${message}`
+      : `${buildProjectContext(project)}\n\nPregunta/instrucción: ${message}`
+
     const response = await client.messages.create({
       model,
       max_tokens: 1024,
@@ -395,7 +402,7 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
       messages: [
         {
           role: 'user',
-          content: `${buildProjectContext(project)}\n\nPregunta/instrucción: ${message}`,
+          content: userContent,
         },
       ],
     })

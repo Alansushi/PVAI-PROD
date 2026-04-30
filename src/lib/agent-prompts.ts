@@ -153,3 +153,11 @@ export interface MinutaPlan {
   summary: string
   actions: MinutaAction[]
 }
+
+export const VIEW_FOCUS: Record<string, string> = {
+  cronograma: 'Enfoca el análisis en fechas, delays y riesgos de cronograma. Identifica los entregables con mayor probabilidad de no cumplirse.',
+  kanban: 'Enfoca el análisis en la carga del equipo, bloqueos activos y distribución de trabajo entre miembros.',
+  riesgos: 'Enfoca el análisis en estrategias de mitigación concretas para los elementos en estado danger o warn.',
+  analisis: 'Enfoca el análisis en métricas de avance, predicciones y tendencias del proyecto.',
+  default: 'Analiza el estado general del proyecto y prioriza las acciones de mayor impacto.',
+}
