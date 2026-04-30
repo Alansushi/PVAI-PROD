@@ -226,6 +226,38 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## FASE 6 — UX Copiloto IA ✅ COMPLETADA
+
+### F6.1 — Barra Agente IA Rediseñada ✅
+**Branch:** `feat/ux-audit-2026`
+**Migración:** `20260430000000_agent_card_typed` — campos `cardType`, `actions`, `dismissed` en `AgentMessage`
+
+**Componentes nuevos:**
+- `src/components/agent/AgentCard.tsx` — cards tipadas (alerta/recomendacion/insight/pregunta) con borde color izquierdo + icono + timestamp en tiempo real
+- `src/components/agent/AgentCardCTA.tsx` — botones [Aplicar] [Ver detalle] [Descartar] en cada card
+- `src/components/agent/AgentComposer.tsx` — composer persistente en footer: input + 3 chips rotativos + Enter envía
+- `src/components/agent/AgentStatusBar.tsx` — estado en vivo (idle/thinking/stale) reemplaza "En línea" estático
+- `src/components/agent/DryRunModal.tsx` — modal de preview antes de ejecutar acciones destructivas
+- `src/components/agent/AgentHistoryDrawer.tsx` — drawer de historial con dismiss desde DB
+
+**Archivos modificados:**
+- `src/lib/context/AgentContext.tsx` — AgentMessage[] → AgentCard[], + collapsed/lastRefreshed/agentStatus state
+- `src/components/layout/AgentPanel.tsx` — header con refresh + collapse + historial; modo colapsado 64px
+- `src/lib/hooks/useAgent.ts` — addCard, executeCardAction, dismissCardServer, refreshHistory
+- `src/lib/hooks/useRelativeTime.ts` — hook de timestamps en tiempo real (updates cada 30s)
+- `src/app/api/agent/route.ts` — respuesta tipada: cardType + html + timestamp
+- `src/app/api/projects/[id]/agent-messages/route.ts` — GET incluye cardType/dismissed/actions; PATCH marca dismissed
+- `src/lib/types.ts` — AgentCard, AgentCardType, AgentCardAction
+
+**Criterios de verificación:**
+- Cards muestran borde/color/icono correcto por tipo
+- [Aplicar] → dry-run modal → confirm → mutation → toast
+- Collapse/expand persiste en localStorage
+- Timestamps se actualizan en tiempo real cada 30s
+- Status "Pensando…" durante respuesta del agente
+
+---
+
 ## Tabla de prioridades
 
 | Fase | Feature | Impacto | Estado |
@@ -251,6 +283,7 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 | F5.4 | Tabs en Vista de Proyecto | ★★★★☆ | ✅ Hecho |
 | F5.5 | Empty State + Tooltips | ★★★☆☆ | ✅ Hecho |
 | F5.6 | IA flotante móvil | ★★★☆☆ | ✅ Hecho (prev.) |
+| F6.1 | Copiloto IA accionable (cards tipadas, CTAs, composer) | ★★★★★ | ✅ Hecho |
 | F-Legal | Aviso Privacidad + Términos | ★★★★★ | ✅ Hecho |
 | F-Security | RLS en todas las tablas Supabase | ★★★★★ | ✅ Hecho |
 
@@ -267,3 +300,4 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 - **F2.3:** Proyecto con entregables completados + endDate → VelocityWidget muestra barras + badge alerta si velocidad insuficiente ✅
 - **F2.4:** Crear KPI con target/current → barra de progreso color-coded visible en panel ✅
 - **F3.3:** Proyecto lento con deadline próximo → badge predictivo "En riesgo" en dashboard
+- **F6.1:** Abrir panel IA → cards muestran borde/color por tipo; [Aplicar] abre dry-run modal; composer Enter envía pregunta; collapse/expand persiste
