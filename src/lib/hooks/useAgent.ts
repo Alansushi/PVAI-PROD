@@ -5,11 +5,11 @@ import { useAgentContext } from '@/lib/context/AgentContext'
 import { AgentPrompt, MinutaPlan } from '@/lib/agent-prompts'
 
 export function useAgent(projectId: string) {
-  const { addMessage, setTyping, setProcessing } = useAgentContext()
+  const { addCard, initCards, setTyping, setProcessing } = useAgentContext()
 
   const askAgent = useCallback(async (agentPrompt: AgentPrompt) => {
     const prompt = agentPrompt.prompt
-    addMessage(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
+    addCard(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
     setTyping(true)
     try {
       const res = await fetch('/api/agent', {
@@ -18,20 +18,24 @@ export function useAgent(projectId: string) {
         body: JSON.stringify({ projectId, message: prompt, type: agentPrompt.id }),
       })
       const data = await res.json()
-      addMessage(data.html ?? '<span class="warn">Sin respuesta del agente.</span>')
+      addCard(
+        data.html ?? '<span class="warn">Sin respuesta del agente.</span>',
+        'agent',
+        data.cardType ?? 'insight'
+      )
     } catch {
-      addMessage('<span class="danger">Error al conectar con el agente.</span>')
+      addCard('<span class="danger">Error al conectar con el agente.</span>')
     } finally {
       setTyping(false)
     }
-  }, [projectId, addMessage, setTyping])
+  }, [projectId, addCard, setTyping])
 
   const sendFree = useCallback(async (text: string, files: string[]) => {
     let msgHtml = `<strong>Tú:</strong> ${text || '(archivo adjunto)'}`
     if (files.length > 0) {
       msgHtml += `<div style="margin-top:4px;">${files.map(f => `<div class="msg-file">📎 ${f}</div>`).join('')}</div>`
     }
-    addMessage(msgHtml, 'user')
+    addCard(msgHtml, 'user')
     setTyping(true)
     try {
       const res = await fetch('/api/agent', {
@@ -40,13 +44,17 @@ export function useAgent(projectId: string) {
         body: JSON.stringify({ projectId, message: text || '(archivo adjunto)', type: 'free' }),
       })
       const data = await res.json()
-      addMessage(data.html ?? '<span class="warn">Sin respuesta del agente.</span>')
+      addCard(
+        data.html ?? '<span class="warn">Sin respuesta del agente.</span>',
+        'agent',
+        data.cardType ?? 'insight'
+      )
     } catch {
-      addMessage('<span class="danger">Error al conectar con el agente.</span>')
+      addCard('<span class="danger">Error al conectar con el agente.</span>')
     } finally {
       setTyping(false)
     }
-  }, [projectId, addMessage, setTyping])
+  }, [projectId, addCard, setTyping])
 
   const generateDoc = useCallback(() => {
     setProcessing('Leyendo planos y cuadro de áreas...')
@@ -54,10 +62,10 @@ export function useAgent(projectId: string) {
       setProcessing('Generando memoria descriptiva...')
       setTimeout(() => {
         setProcessing(false)
-        addMessage('<strong>📄 Memoria descriptiva generada:</strong> Lista para revisión. <span class="warn">2 secciones desactualizadas por cambios de minuta</span> — revísalas antes de firmar.')
+        addCard('<strong>📄 Memoria descriptiva generada:</strong> Lista para revisión. <span class="warn">2 secciones desactualizadas por cambios de minuta</span> — revísalas antes de firmar.')
       }, 1800)
     }, 1000)
-  }, [setProcessing, addMessage])
+  }, [setProcessing, addCard])
 
   const processMinuta = useCallback(async (text: string, onDone: (plan?: MinutaPlan) => void) => {
     setProcessing('Analizando acuerdos...')
@@ -71,15 +79,25 @@ export function useAgent(projectId: string) {
       setProcessing(false)
       const plan = data.plan as MinutaPlan | undefined
       if (plan?.summary) {
-        addMessage(`<strong>✦ Minuta analizada:</strong> ${plan.summary}`)
+        addCard(`<strong>✦ Minuta analizada:</strong> ${plan.summary}`)
       }
       onDone(plan)
     } catch {
       setProcessing(false)
-      addMessage('<span class="danger">Error al procesar la minuta.</span>')
+      addCard('<span class="danger">Error al procesar la minuta.</span>')
       onDone()
     }
-  }, [projectId, setProcessing, addMessage])
+  }, [projectId, setProcessing, addCard])
 
-  return { askAgent, sendFree, generateDoc, processMinuta }
+  const refreshHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/agent-messages`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data?.messages?.length) return
+      initCards(data.messages)
+    } catch {}
+  }, [projectId, initCards])
+
+  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory }
 }
