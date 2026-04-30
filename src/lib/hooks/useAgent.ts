@@ -22,7 +22,8 @@ export function useAgent(projectId: string) {
       addCard(
         data.html ?? '<span class="warn">Sin respuesta del agente.</span>',
         'agent',
-        data.cardType ?? 'insight'
+        data.cardType ?? 'insight',
+        data.reasoning ?? null
       )
     } catch {
       addCard('<span class="danger">Error al conectar con el agente.</span>')
@@ -48,7 +49,8 @@ export function useAgent(projectId: string) {
       addCard(
         data.html ?? '<span class="warn">Sin respuesta del agente.</span>',
         'agent',
-        data.cardType ?? 'insight'
+        data.cardType ?? 'insight',
+        data.reasoning ?? null
       )
     } catch {
       addCard('<span class="danger">Error al conectar con el agente.</span>')

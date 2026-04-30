@@ -99,4 +99,5 @@ export interface AgentCard {
   dismissed?: boolean
   isDbCard?: boolean
   undone?: boolean
+  reasoning?: string | null
 }

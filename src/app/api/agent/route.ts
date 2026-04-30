@@ -22,7 +22,8 @@ Reglas:
 - Usa <strong> para encabezados o puntos clave
 - Usa <br> para separar párrafos
 - Basa tu análisis en los datos reales del proyecto que se te proporcionan
-- Puedes indicar el tipo de respuesta anteponiendo <CARD:alerta>, <CARD:recomendacion>, <CARD:insight> o <CARD:pregunta> al inicio de tu respuesta. Úsalo solo si el tipo difiere del contexto de la pregunta (ej: usa <CARD:alerta> si detectas un riesgo crítico aunque la pregunta sea de avance).`
+- Puedes indicar el tipo de respuesta anteponiendo <CARD:alerta>, <CARD:recomendacion>, <CARD:insight> o <CARD:pregunta> al inicio de tu respuesta. Úsalo solo si el tipo difiere del contexto de la pregunta (ej: usa <CARD:alerta> si detectas un riesgo crítico aunque la pregunta sea de avance).
+- Opcionalmente, al final de respuestas de análisis estructurado, añade una línea <REASONING>texto plano breve (máx. 80 palabras) explicando qué datos concretos del proyecto justifican este análisis</REASONING>. Omite en respuestas de chat libre o si no aporta valor.`
 
 function escapeForPrompt(str: string): string {
   return str
@@ -408,8 +409,16 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     })
 
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
-    const cardType = resolveCardType(type, rawText)
-    const cleanHtml = stripCardPrefix(rawText)
+
+    let reasoning: string | null = null
+    let processedText = rawText
+    const reasoningMatch = rawText.match(/<REASONING>([\s\S]*?)<\/REASONING>/)
+    if (reasoningMatch) {
+      reasoning = reasoningMatch[1].trim().slice(0, 500)
+      processedText = rawText.replace(/<REASONING>[\s\S]*?<\/REASONING>/, '').trim()
+    }
+    const cardType = resolveCardType(type, processedText)
+    const cleanHtml = stripCardPrefix(processedText)
 
     // Persist conversation to DB
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -417,11 +426,11 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     await db.agentMessage.createMany({
       data: [
         { projectId, userId: session.user.id, role: 'user', content: message },
-        { projectId, userId: session.user.id, role: 'agent', content: cleanHtml, cardType },
+        { projectId, userId: session.user.id, role: 'agent', content: cleanHtml, cardType, reasoning },
       ],
     }).catch(() => {}) // non-blocking — don't fail the response if DB write fails
 
-    return NextResponse.json({ cardType, html: cleanHtml, timestamp: new Date().toISOString() })
+    return NextResponse.json({ cardType, html: cleanHtml, timestamp: new Date().toISOString(), reasoning })
   } catch (err) {
     console.error('Agent API error:', err)
     return NextResponse.json({
