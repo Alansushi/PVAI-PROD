@@ -21,15 +21,20 @@ function getGreeting(): string {
   return 'Buenas noches'
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const url = new URL(req.url)
+  const today = (/^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('date') ?? ''))
+    ? url.searchParams.get('date')!
+    : todayISO()
 
   const summary = await db.userDailySummary.findUnique({
     where: {
       userId_date: {
         userId: session.user.id,
-        date: todayISO(),
+        date: today,
       },
     },
   }).catch(() => null)
@@ -37,14 +42,19 @@ export async function GET() {
   return NextResponse.json({ summary: summary ?? null })
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const userId = session.user.id
-  const today = todayISO()
 
-  // Idempotency: return existing record if already generated today
+  let body: { clientDate?: string } = {}
+  try { body = await req.json() } catch { /* ignore */ }
+  const today = (body.clientDate && /^\d{4}-\d{2}-\d{2}$/.test(body.clientDate))
+    ? body.clientDate
+    : todayISO()
+
+  // Idempotency: return existing record if already generated today (saves Anthropic API call)
   const existing = await db.userDailySummary.findUnique({
     where: { userId_date: { userId, date: today } },
   }).catch(() => null)
@@ -102,41 +112,40 @@ export async function POST() {
         )
 
   // Derive first name from session
-  const firstName = session.user.name?.split(' ')[0] ?? 'director'
-  const greeting = getGreeting()
+  const firstName = session.user.name?.split(' ')[0] ?? ''
+  const greetingWord = getGreeting()
+  const namePart = firstName ? ` ${firstName}` : ''
 
   // Attempt AI generation; fall back to plain text if unavailable
   let content: string
 
   if (!process.env.ANTHROPIC_API_KEY) {
     // Plain text fallback
-    content = `${greeting} ${firstName}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}${atRisk > 0 ? `, <span class="warn">${atRisk} en riesgo</span>` : ', <span class="ok">todos al corriente</span>'}. Cumplimiento de entregables: <span class="${compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'}">${compliance}%</span>.`
+    const riskLabelPlain = atRisk > 0 ? `, <span class="warn">${atRisk} en riesgo</span>` : ', <span class="ok">todos al corriente</span>'
+    const complianceClassPlain = compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
+    content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}${riskLabelPlain}. Cumplimiento de entregables: <span class="${complianceClassPlain}">${compliance}%</span>.`
   } else {
-    const riskLabel =
-      atRisk === 0
-        ? `<span class="ok">todos al corriente</span>`
-        : `<span class="nl">${atRisk}</span> <span class="warn">en riesgo</span>`
-
-    const complianceClass =
-      compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
-
     const userPrompt = `Genera exactamente 2 oraciones en español para el resumen diario de un director de arquitectura/diseño.
 
 Datos:
-- Saludo: "${greeting} ${firstName}, esto es lo que importa hoy."
 - Proyectos totales: ${total}
 - Proyectos en riesgo (status warn o danger): ${atRisk}
 - Cumplimiento de entregables: ${compliance}%
 
-Oración 1: Usa exactamente el saludo proporcionado arriba, sin modificarlo.
+Oración 1: Saludo de apertura. Usa "${greetingWord}${namePart}, esto es lo que importa hoy." — si el nombre está vacío, escribe simplemente "Hola, esto es lo que importa hoy."
 Oración 2: Resume el estado del portafolio en una sola oración, usando estas clases HTML inline para resaltar datos: <span class="nl"> para números y datos clave, <span class="ok"> para cosas positivas, <span class="warn"> para advertencias, <span class="danger"> para riesgos críticos.
 
 Ejemplos de oración 2:
 - "Tienes <span class=\\"nl\\">3</span> proyectos activos, <span class=\\"warn\\">1 en riesgo</span> y un cumplimiento del <span class=\\"ok\\">87%</span>."
 - "Tu portafolio tiene <span class=\\"nl\\">5</span> proyectos, <span class=\\"ok\\">todos al corriente</span> con <span class=\\"ok\\">${compliance}% de cumplimiento</span>."
 
-Estado actual: ${total} proyectos, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.
+Proyectos totales: ${total}. En riesgo: ${atRisk}. Cumplimiento: ${compliance}%.
 Responde solo con las 2 oraciones en HTML, sin explicaciones adicionales.`
+
+    const complianceClassFallback = compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
+    const riskLabelFallback = atRisk === 0
+      ? `<span class="ok">todos al corriente</span>`
+      : `<span class="nl">${atRisk}</span> <span class="warn">en riesgo</span>`
 
     try {
       const response = await client.messages.create({
@@ -148,16 +157,18 @@ Responde solo con las 2 oraciones en HTML, sin explicaciones adicionales.`
       content =
         response.content[0].type === 'text'
           ? response.content[0].text.trim()
-          : `${greeting} ${firstName}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.`
+          : `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabelFallback}, cumplimiento <span class="${complianceClassFallback}">${compliance}%</span>.`
     } catch {
       // Plain text fallback on API error
-      content = `${greeting} ${firstName}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.`
+      content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabelFallback}, cumplimiento <span class="${complianceClassFallback}">${compliance}%</span>.`
     }
   }
 
-  // Persist and return
-  const summary = await db.userDailySummary.create({
-    data: { userId, date: today, content },
+  // Persist and return — upsert avoids P2002 race condition on @@unique([userId, date])
+  const summary = await db.userDailySummary.upsert({
+    where: { userId_date: { userId, date: today } },
+    update: {},
+    create: { userId, date: today, content },
   })
 
   return NextResponse.json({ summary })
