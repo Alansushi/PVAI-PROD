@@ -5,7 +5,7 @@ import { useAgentContext } from '@/lib/context/AgentContext'
 import { useAgent } from '@/lib/hooks/useAgent'
 import AgentMessages from '@/components/agent/AgentMessages'
 import TypingIndicator from '@/components/agent/TypingIndicator'
-import QuickChips from '@/components/agent/QuickChips'
+import AgentComposer from '@/components/agent/AgentComposer'
 import AgentStatusBar from '@/components/agent/AgentStatusBar'
 import { useState, useEffect } from 'react'
 import DBMinutaModal from '@/components/dashboard/DBMinutaModal'
@@ -25,9 +25,8 @@ export default function AgentPanel() {
     setLastRefreshed,
     agentStatus,
   } = useAgentContext()
-  const { askAgent, refreshHistory } = useAgent(projectId)
+  const { askAgent, sendFree, refreshHistory } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
-  const [chipsOpen, setChipsOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Load collapsed state from localStorage on mount
@@ -109,17 +108,10 @@ export default function AgentPanel() {
         </div>
       )}
 
-      {/* Chips */}
-      <div className="flex-shrink-0 border-t border-pv-accent/20" style={{ background: 'rgba(46,143,192,0.07)' }}>
-        <button
-          onClick={() => setChipsOpen(o => !o)}
-          className="w-full text-left text-[9px] font-bold uppercase tracking-[0.5px] text-pv-accent/80 px-3.5 pt-2.5 pb-2 flex items-center justify-between hover:text-pv-accent transition-colors"
-        >
-          ✦ Elige una acción
-          <span className={`transition-transform duration-200 ${chipsOpen ? 'rotate-180' : ''}`}>▾</span>
-        </button>
-        {chipsOpen && <QuickChips onAsk={askAgent} />}
-      </div>
+      <AgentComposer
+        onSend={(text) => sendFree(text, [])}
+        onChip={askAgent}
+      />
     </>
   )
 
