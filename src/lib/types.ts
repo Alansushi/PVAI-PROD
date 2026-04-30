@@ -78,3 +78,23 @@ export interface AgentMessage {
   html: string
   time: string
 }
+
+export type AgentCardType = 'alerta' | 'recomendacion' | 'insight' | 'pregunta'
+
+export interface AgentCardAction {
+  id: string
+  label: string
+  variant: 'primary' | 'secondary' | 'ghost'
+  actionType: 'update' | 'create' | 'reassign' | 'note' | 'navigate' | 'dismiss'
+  payload?: unknown
+}
+
+export interface AgentCard {
+  id: string
+  cardType: AgentCardType
+  role: 'agent' | 'user'
+  html: string
+  timestamp: Date
+  actions?: AgentCardAction[]
+  dismissed?: boolean
+}
