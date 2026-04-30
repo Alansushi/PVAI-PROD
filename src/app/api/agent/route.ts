@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import type { AgentCardType } from '@/lib/types'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -19,7 +20,8 @@ Reglas:
   - <span class="nl">texto</span> para datos numéricos o nombres clave (azul)
 - Usa <strong> para encabezados o puntos clave
 - Usa <br> para separar párrafos
-- Basa tu análisis en los datos reales del proyecto que se te proporcionan`
+- Basa tu análisis en los datos reales del proyecto que se te proporcionan
+- Puedes indicar el tipo de respuesta anteponiendo <CARD:alerta>, <CARD:recomendacion>, <CARD:insight> o <CARD:pregunta> al inicio de tu respuesta. Úsalo solo si el tipo difiere del contexto de la pregunta (ej: usa <CARD:alerta> si detectas un riesgo crítico aunque la pregunta sea de avance).`
 
 function escapeForPrompt(str: string): string {
   return str
@@ -60,6 +62,34 @@ function validateMinutaPlan(plan: unknown): { summary: string; actions: unknown[
       })
       .slice(0, 15),
   }
+}
+
+const CHIP_CARD_TYPE: Record<string, AgentCardType> = {
+  riesgos: 'alerta',
+  bloqueados: 'alerta',
+  sugerir_riesgos: 'alerta',
+  equipo: 'recomendacion',
+  balancear_carga: 'recomendacion',
+  sin_asignar: 'recomendacion',
+  avance: 'insight',
+  tiempo: 'insight',
+  velocidad: 'insight',
+  prediccion: 'insight',
+  resumen_ejecutivo: 'insight',
+  siguiente_entrega: 'insight',
+  estado_paquetes: 'insight',
+}
+
+function resolveCardType(chipType: string | undefined, rawText: string): AgentCardType {
+  // Claude can override type by prefixing response with <CARD:tipo>
+  const override = rawText.match(/^<CARD:(alerta|recomendacion|insight|pregunta)>/)
+  if (override) return override[1] as AgentCardType
+  if (!chipType || chipType === 'free') return 'pregunta'
+  return CHIP_CARD_TYPE[chipType] ?? 'insight'
+}
+
+function stripCardPrefix(text: string): string {
+  return text.replace(/^<CARD:(alerta|recomendacion|insight|pregunta)>/, '')
 }
 
 function buildProjectContext(project: {
@@ -348,7 +378,7 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
         data: { projectId, userId: session.user.id, content: rawText },
       }).catch(() => {})
 
-      return NextResponse.json({ html: rawText })
+      return NextResponse.json({ cardType: 'insight' as AgentCardType, html: rawText, timestamp: new Date().toISOString() })
     } catch (err) {
       console.error('Agent reporte error:', err)
       return NextResponse.json({
@@ -371,6 +401,8 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     })
 
     const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+    const cardType = resolveCardType(type, rawText)
+    const cleanHtml = stripCardPrefix(rawText)
 
     // Persist conversation to DB
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -378,15 +410,17 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     await db.agentMessage.createMany({
       data: [
         { projectId, userId: session.user.id, role: 'user', content: message },
-        { projectId, userId: session.user.id, role: 'agent', content: rawText },
+        { projectId, userId: session.user.id, role: 'agent', content: cleanHtml, cardType },
       ],
     }).catch(() => {}) // non-blocking — don't fail the response if DB write fails
 
-    return NextResponse.json({ html: rawText })
+    return NextResponse.json({ cardType, html: cleanHtml, timestamp: new Date().toISOString() })
   } catch (err) {
     console.error('Agent API error:', err)
     return NextResponse.json({
+      cardType: 'insight' as AgentCardType,
       html: '<strong class="danger">✦ Error del agente:</strong> No se pudo conectar con el servidor de IA. Verifica tu API key.',
+      timestamp: new Date().toISOString(),
     })
   }
 }
