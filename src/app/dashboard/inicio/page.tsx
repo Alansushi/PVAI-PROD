@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import NewProjectButton from '@/components/dashboard/NewProjectButton'
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
+import DailySummaryBanner from '@/components/dashboard/DailySummaryBanner'
 import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
 
@@ -225,6 +226,9 @@ export default function DashboardInicio() {
 
       {/* Onboarding checklist — shown until dismissed or all steps done */}
       <OnboardingChecklist hasProjects={projects.length > 0} />
+
+      {/* Daily AI morning brief — fetched/generated client-side to respect user timezone */}
+      <DailySummaryBanner />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
