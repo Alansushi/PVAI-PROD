@@ -376,12 +376,20 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
 
       const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
 
+      let reporteReasoning: string | null = null
+      let processedReporteText = rawText
+      const reporteReasoningMatch = rawText.match(/<REASONING>([\s\S]*?)<\/REASONING>/)
+      if (reporteReasoningMatch) {
+        reporteReasoning = reporteReasoningMatch[1].trim().slice(0, 500)
+        processedReporteText = rawText.replace(/<REASONING>[\s\S]*?<\/REASONING>/, '').trim()
+      }
+
       // Persist report non-blocking
       db.processedReport.create({
-        data: { projectId, userId: session.user.id, content: rawText },
+        data: { projectId, userId: session.user.id, content: processedReporteText },
       }).catch(() => {})
 
-      return NextResponse.json({ cardType: 'insight' as AgentCardType, html: rawText, timestamp: new Date().toISOString() })
+      return NextResponse.json({ cardType: 'insight' as AgentCardType, html: processedReporteText, timestamp: new Date().toISOString(), reasoning: reporteReasoning })
     } catch (err) {
       console.error('Agent reporte error:', err)
       return NextResponse.json({
