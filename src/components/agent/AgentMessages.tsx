@@ -49,7 +49,21 @@ export default function AgentMessages() {
         projectId={projectId}
         onConfirm={async () => {
           if (dryRunState) {
-            await executeCardAction(dryRunState.action, dryRunState.cardId, dryRunState.isDbCard)
+            const ok = await executeCardAction(dryRunState.action, dryRunState.cardId, dryRunState.isDbCard)
+            if (ok) {
+              try {
+                const CHECKED_KEY = 'pvai_onboarding_done_checked'
+                const checked = JSON.parse(localStorage.getItem(CHECKED_KEY) ?? '{}') as Record<string, boolean>
+                if (!checked['agent_cta']) {
+                  checked['agent_cta'] = true
+                  localStorage.setItem(CHECKED_KEY, JSON.stringify(checked))
+                  window.dispatchEvent(new StorageEvent('storage', {
+                    key: CHECKED_KEY,
+                    newValue: JSON.stringify(checked),
+                  }))
+                }
+              } catch { /* ignore */ }
+            }
           }
         }}
         onClose={() => setDryRunState(null)}

@@ -9,7 +9,7 @@ interface AgentContextValue {
   isProcessing: boolean
   processingText: string
   attachedFiles: string[]
-  addCard: (html: string, role?: 'agent' | 'user', cardType?: AgentCardType, actions?: AgentCardAction[]) => void
+  addCard: (html: string, role?: 'agent' | 'user', cardType?: AgentCardType, reasoning?: string | null) => void
   dismissCard: (id: string) => void
   updateCardUndone: (id: string) => void
   setTyping: (v: boolean) => void
@@ -52,7 +52,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     html: string,
     role: 'agent' | 'user' = 'agent',
     cardType: AgentCardType = 'insight',
-    actions?: AgentCardAction[]
+    reasoning?: string | null
   ) => {
     setCards(prev => [...prev, {
       id: `c${Date.now()}${Math.random()}`,
@@ -60,7 +60,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       html,
       timestamp: new Date(),
       cardType,
-      actions,
+      reasoning,
       dismissed: false,
     }])
   }, [])

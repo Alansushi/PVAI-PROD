@@ -24,6 +24,8 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, '').trim().slice(0, 40)
 }
 
+type AgentMode = 'solo_cuando_lo_pida' | 'equilibrado' | 'proactivo'
+
 export default function AgentPanel() {
   const params = useParams()
   const pathname = usePathname()
@@ -52,11 +54,22 @@ export default function AgentPanel() {
   const [arPopoverOpen, setArPopoverOpen] = useState(false)
   const arButtonRef = useRef<HTMLButtonElement>(null)
 
+  // Agent proactivity mode
+  const [agentMode, setAgentMode] = useState<AgentMode>('equilibrado')
+
   // Load auto-refresh config from localStorage on mount
   useEffect(() => {
     const { enabled, intervalMin } = loadAutoRefreshConfig()
     setArEnabled(enabled)
     setArInterval(intervalMin)
+  }, [])
+
+  // Load agent mode from user settings on mount
+  useEffect(() => {
+    fetch('/api/user/settings')
+      .then(r => r.json())
+      .then((d: { agentMode: AgentMode }) => setAgentMode(d.agentMode))
+      .catch(() => {})
   }, [])
 
   function handleArToggle(enabled: boolean) {
@@ -69,9 +82,26 @@ export default function AgentPanel() {
     saveAutoRefreshConfig(arEnabled, min)
   }
 
+  async function handleModeChange(mode: AgentMode) {
+    setAgentMode(mode)
+    if (mode === 'solo_cuando_lo_pida') {
+      setArEnabled(false)
+      saveAutoRefreshConfig(false, arInterval)
+    } else if (mode === 'proactivo') {
+      setArEnabled(true)
+      setArInterval(15)
+      saveAutoRefreshConfig(true, 15)
+    }
+    await fetch('/api/user/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentMode: mode }),
+    }).catch(() => {})
+  }
+
   const doRefresh = () => { refreshHistory(); setLastRefreshed(new Date()) }
 
-  useAutoRefresh(doRefresh, arEnabled, arInterval)
+  useAutoRefresh(doRefresh, arEnabled && agentMode !== 'solo_cuando_lo_pida', arInterval)
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -106,6 +136,15 @@ export default function AgentPanel() {
 
   const contextChips = getContextualChips(pathname ?? '')
 
+  function resolveView(path: string): string {
+    if (path.includes('/tablero')) return 'kanban'
+    if (path.includes('/cronograma')) return 'cronograma'
+    if (path.includes('/riesgos')) return 'riesgos'
+    if (path.includes('/analisis')) return 'analisis'
+    return 'default'
+  }
+  const currentView = resolveView(pathname ?? '')
+
   const panelContent = (
     <>
       {/* Header */}
@@ -127,19 +166,19 @@ export default function AgentPanel() {
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
         </button>
-        {/* Auto-refresh button */}
+        {/* Auto-refresh / mode button */}
         <div className="relative">
           <button
             ref={arButtonRef}
             onClick={() => setArPopoverOpen(p => !p)}
-            className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative ${arEnabled ? 'text-pv-accent' : ''}`}
-            title={arEnabled ? `Auto-refresh: ${arInterval}m` : 'Configurar auto-refresh'}
+            className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative ${arEnabled && agentMode !== 'solo_cuando_lo_pida' ? 'text-pv-accent' : ''}`}
+            title="Modo del agente y auto-refresh"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            {arEnabled && (
+            {arEnabled && agentMode !== 'solo_cuando_lo_pida' && (
               <span className="absolute -top-1 -right-1 text-[7px] font-bold text-pv-accent leading-none">
                 {arInterval}
               </span>
@@ -152,31 +191,59 @@ export default function AgentPanel() {
                 className="absolute right-0 top-6 z-50 rounded-xl border border-white/10 shadow-xl p-3 w-44"
                 style={{ background: '#0D2035' }}
               >
-                <label className="flex items-center gap-2 mb-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={arEnabled}
-                    onChange={e => handleArToggle(e.target.checked)}
-                    className="accent-pv-accent"
-                  />
-                  <span className="text-[11px] font-semibold text-pv-white">Auto-refresh</span>
-                </label>
-                <p className="text-[9px] text-pv-gray mb-2 uppercase tracking-wide">Intervalo</p>
-                <div className="grid grid-cols-4 gap-1">
-                  {AUTO_REFRESH_OPTIONS.map(min => (
-                    <button
-                      key={min}
-                      onClick={() => handleArInterval(min)}
-                      className={`text-[10px] rounded-md py-1 font-semibold transition-colors ${
-                        arInterval === min
-                          ? 'bg-pv-accent text-white'
-                          : 'bg-white/[0.06] text-pv-gray hover:bg-white/[0.12]'
-                      }`}
-                    >
-                      {min}m
-                    </button>
-                  ))}
+                {/* Agent mode */}
+                <p className="text-[9px] text-pv-gray mb-1.5 uppercase tracking-[0.5px]">Modo del agente</p>
+                <div className="flex rounded-lg overflow-hidden border border-white/10 mb-3">
+                  {(['solo_cuando_lo_pida', 'equilibrado', 'proactivo'] as AgentMode[]).map((mode) => {
+                    const labels: Record<AgentMode, string> = {
+                      solo_cuando_lo_pida: 'Manual',
+                      equilibrado: 'Equilibrado',
+                      proactivo: 'Proactivo',
+                    }
+                    return (
+                      <button
+                        key={mode}
+                        onClick={() => handleModeChange(mode)}
+                        className={`flex-1 text-[9px] py-1 transition-colors ${
+                          agentMode === mode
+                            ? 'bg-pv-accent/20 text-pv-accent'
+                            : 'text-pv-gray hover:text-white/70'
+                        }`}
+                      >
+                        {labels[mode]}
+                      </button>
+                    )
+                  })}
                 </div>
+                {agentMode !== 'solo_cuando_lo_pida' && (
+                  <>
+                    <label className="flex items-center gap-2 mb-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={arEnabled}
+                        onChange={e => handleArToggle(e.target.checked)}
+                        className="accent-pv-accent"
+                      />
+                      <span className="text-[11px] font-semibold text-pv-white">Auto-refresh</span>
+                    </label>
+                    <p className="text-[9px] text-pv-gray mb-2 uppercase tracking-wide">Intervalo</p>
+                    <div className="grid grid-cols-4 gap-1">
+                      {AUTO_REFRESH_OPTIONS.map(min => (
+                        <button
+                          key={min}
+                          onClick={() => handleArInterval(min)}
+                          className={`text-[10px] rounded-md py-1 font-semibold transition-colors ${
+                            arInterval === min
+                              ? 'bg-pv-accent text-white'
+                              : 'bg-white/[0.06] text-pv-gray hover:bg-white/[0.12]'
+                          }`}
+                        >
+                          {min}m
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -222,8 +289,8 @@ export default function AgentPanel() {
       )}
 
       <AgentComposer
-        onSend={(text) => sendFree(text, [])}
-        onChip={askAgent}
+        onSend={(text) => sendFree(text, [], currentView)}
+        onChip={(prompt) => askAgent(prompt, currentView)}
         contextChips={contextChips}
         onExpandChat={() => setChatModalOpen(true)}
       />
@@ -316,6 +383,7 @@ export default function AgentPanel() {
         open={chatModalOpen}
         onClose={() => setChatModalOpen(false)}
         projectId={projectId}
+        view={currentView}
       />
     </>
   )

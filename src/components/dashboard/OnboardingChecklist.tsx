@@ -35,6 +35,18 @@ const STEPS = [
     title: 'Copiloto accionable',
     description: 'Usa el composer del panel IA — escribe una pregunta o elige un chip para obtener análisis con acciones ejecutables.',
   },
+  {
+    id: 'agent_cta',
+    icon: '⚡',
+    title: 'Aplica una recomendación',
+    description: 'Cuando el agente genere una card con botón, toca Aplicar para ver cómo funciona.',
+  },
+  {
+    id: 'daily_banner',
+    icon: '☀',
+    title: 'Tu resumen del día',
+    description: 'Cada mañana te resumo lo más importante del portafolio aquí arriba.',
+  },
 ]
 
 export default function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
@@ -49,6 +61,23 @@ export default function OnboardingChecklist({ hasProjects }: { hasProjects: bool
       const checkedVal = localStorage.getItem(STORAGE_KEY + '_checked')
       if (checkedVal) setChecked(JSON.parse(checkedVal))
     } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
+    const CHECKED_KEY = STORAGE_KEY + '_checked'
+    function onStorage(e: StorageEvent) {
+      if (e.key !== CHECKED_KEY) return
+      try {
+        const incoming = JSON.parse(e.newValue ?? '{}') as Record<string, boolean>
+        setChecked(prev => {
+          const merged = { ...prev, ...incoming }
+          localStorage.setItem(CHECKED_KEY, JSON.stringify(merged))
+          return merged
+        })
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   // Auto-check "project" step if there are projects

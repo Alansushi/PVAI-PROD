@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import DOMPurify from 'isomorphic-dompurify'
 import parse from 'html-react-parser'
 import type { AgentCard as AgentCardType, AgentCardAction, AgentCardType as CardType } from '@/lib/types'
@@ -57,6 +58,7 @@ interface Props {
 export default function AgentCard({ card, onAction, onDismiss }: Props) {
   const timeLabel = useRelativeTime(card.timestamp)
   const safeHtml = DOMPurify.sanitize(card.html, { ALLOWED_TAGS, ALLOWED_ATTR })
+  const [showReasoning, setShowReasoning] = useState(false)
 
   // User messages: render exactly like AgentMessage.tsx
   if (card.role === 'user') {
@@ -122,6 +124,23 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* ¿Por qué? reasoning section */}
+      {card.reasoning && (
+        <div className="border-t border-white/[0.06] px-2.5 pb-2">
+          <button
+            onClick={() => setShowReasoning(v => !v)}
+            className="text-[11px] text-pv-gray/70 hover:text-pv-gray mt-1.5 w-full text-left"
+          >
+            {showReasoning ? '▲ Ocultar justificación' : '▾ ¿Por qué esta sugerencia?'}
+          </button>
+          {showReasoning && (
+            <p className="text-[12px] text-pv-gray/80 mt-1.5 leading-relaxed">
+              {card.reasoning}
+            </p>
+          )}
         </div>
       )}
     </div>

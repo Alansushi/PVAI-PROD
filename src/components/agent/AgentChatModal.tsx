@@ -12,9 +12,10 @@ interface Props {
   open: boolean
   onClose: () => void
   projectId: string
+  view?: string
 }
 
-export default function AgentChatModal({ open, onClose, projectId }: Props) {
+export default function AgentChatModal({ open, onClose, projectId, view }: Props) {
   const { cards } = useAgentContext()
   const { sendFree, askAgent, executeCardAction, dismissCardServer } = useAgent(projectId)
   const [dryRunState, setDryRunState] = useState<{ action: AgentCardAction; cardId: string; isDbCard: boolean } | null>(null)
@@ -85,8 +86,8 @@ export default function AgentChatModal({ open, onClose, projectId }: Props) {
 
         {/* Composer */}
         <AgentComposer
-          onSend={(text) => sendFree(text, [])}
-          onChip={askAgent}
+          onSend={(text) => sendFree(text, [], view)}
+          onChip={(prompt) => askAgent(prompt, view)}
         />
       </div>
 
