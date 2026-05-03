@@ -8,6 +8,7 @@ import DailySummaryBanner from '@/components/dashboard/DailySummaryBanner'
 import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { getKpiTone } from '@/lib/ui-helpers'
 
 const STATUS_DOT: Record<string, string> = {
   ok:     'bg-[#2A9B6F]',
@@ -235,28 +236,28 @@ export default function DashboardInicio() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-2">Proyectos totales</div>
-          <div className="font-display text-[26px] font-black leading-none text-[#2E8FC0]">
+          <div className={`font-display text-[26px] font-black leading-none ${getKpiTone(projects.length, 'total')}`}>
             {projects.length}
           </div>
           <div className="text-[10px] text-pv-gray mt-1">proyectos activos</div>
         </div>
         <div className={`${enRiesgo > 0 ? 'bg-[#E09B3D]/[0.06] border-[#E09B3D]/20' : 'bg-white/[0.04] border-white/[0.08]'} border rounded-xl p-4`}>
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-2">En riesgo</div>
-          <div className={`font-display text-[26px] font-black leading-none ${enRiesgo > 0 ? 'text-[#E09B3D]' : 'text-white'}`}>
+          <div className={`font-display text-[26px] font-black leading-none ${getKpiTone(enRiesgo, 'risk')}`}>
             {enRiesgo}
           </div>
           <div className="text-[10px] text-pv-gray mt-1">de {projects.length} proyectos</div>
         </div>
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-2">Completadas %</div>
-          <div className="font-display text-[26px] font-black leading-none text-white">
+          <div className={`font-display text-[26px] font-black leading-none ${getKpiTone(globalPct, 'pct')}`}>
             {globalPct}%
           </div>
           <div className="text-[10px] text-pv-gray mt-1">{totalDone}/{totalDeliverables} entregables</div>
         </div>
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-2">Miembros</div>
-          <div className="font-display text-[26px] font-black leading-none text-white">
+          <div className={`font-display text-[26px] font-black leading-none ${getKpiTone(uniqueMembers, 'members')}`}>
             {uniqueMembers}
           </div>
           <div className="text-[10px] text-pv-gray mt-1">colaboradores</div>
