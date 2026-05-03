@@ -7,6 +7,7 @@ import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 import DailySummaryBanner from '@/components/dashboard/DailySummaryBanner'
 import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const STATUS_DOT: Record<string, string> = {
   ok:     'bg-[#2A9B6F]',
@@ -297,13 +298,15 @@ export default function DashboardInicio() {
           </div>
 
           {projects.length === 0 ? (
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-8 text-center">
-              <div className="text-[36px] mb-3">🏗</div>
-              <div className="font-display text-[16px] font-black text-white mb-2">Crea tu primer proyecto</div>
-              <div className="text-[12px] text-pv-gray max-w-xs mx-auto mb-4">
-                Registra un proyecto, agrega entregables y deja que la IA coordine el seguimiento por ti.
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl">
+              <EmptyState
+                icon={<span className="text-[36px]">🏗</span>}
+                title="Crea tu primer proyecto"
+                hint="Registra un proyecto, agrega entregables y deja que la IA coordine el seguimiento por ti."
+              />
+              <div className="pb-6 flex justify-center">
+                <NewProjectButton onCreated={fetchProjects} />
               </div>
-              <NewProjectButton onCreated={fetchProjects} />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -433,9 +436,7 @@ export default function DashboardInicio() {
             Vencimientos próximos
           </h2>
           {upcoming.length === 0 ? (
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-5 text-center">
-              <div className="text-[11px] text-pv-gray">Sin vencimientos próximos</div>
-            </div>
+            <EmptyState compact title="Sin vencimientos próximos" />
           ) : (
             <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
               {upcoming.map((d, i) => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAgent } from '@/lib/hooks/useAgent'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface AgentMessage {
   id: string
@@ -134,7 +135,7 @@ export default function AgentHistoryDrawer({ open, projectId, onClose }: Props) 
               <div className="w-4 h-4 border-2 border-pv-accent/30 border-t-pv-accent rounded-full animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <p className="text-[11px] text-pv-gray text-center mt-6">Sin mensajes registrados.</p>
+            <EmptyState title="Sin mensajes registrados" />
           ) : (
             messages.map(msg => {
               const cfg = TYPE_CONFIG[(msg.cardType as CardType) ?? 'insight'] ?? TYPE_CONFIG.insight

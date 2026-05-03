@@ -10,6 +10,7 @@ import InviteMemberModal from './InviteMemberModal'
 import DBMinutaModal from './DBMinutaModal'
 import CollaboratorProfileModal from './CollaboratorProfileModal'
 import ProjectCalendarWidget from './ProjectCalendarWidget'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { CalendarMilestone } from './ProjectCalendarWidget'
 import ProjectNotesWidget from './ProjectNotesWidget'
 import MinutasPanel from './MinutasPanel'
@@ -826,6 +827,9 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
                     </div>
                   )
                 })}
+                {byStatus[col.key as keyof typeof byStatus].length === 0 && (
+                  <EmptyState compact title="Sin tareas" />
+                )}
               </div>
             </div>
           ))}
@@ -852,9 +856,10 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
             ))}
           </div>
         ) : packages.length === 0 ? (
-          <div className="px-4 py-6 text-center text-[11px] text-pv-gray/50 italic">
-            Sin paquetes. Crea uno para agrupar entregables con fechas de pre-entrega y entrega final.
-          </div>
+          <EmptyState
+            title="Sin paquetes"
+            hint="Crea uno para agrupar entregables con fechas de pre-entrega y entrega final."
+          />
         ) : (
           <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {packages.map(pkg => {
