@@ -99,7 +99,7 @@ export default function DryRunModal({ open, action, onConfirm, onClose }: Props)
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-3 py-1.5 text-[11px] font-semibold text-pv-gray border border-white/[0.1] rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-[11px] font-semibold text-pv-gray border border-white/[0.1] rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none"
           >
             Cancelar
           </button>
@@ -107,7 +107,7 @@ export default function DryRunModal({ open, action, onConfirm, onClose }: Props)
             type="button"
             onClick={handleConfirm}
             disabled={loading}
-            className="px-4 py-1.5 text-[11px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-1.5 text-[11px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none"
           >
             {loading ? 'Confirmando...' : 'Confirmar'}
           </button>

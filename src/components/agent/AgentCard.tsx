@@ -93,7 +93,7 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
             <button
               onClick={() => onDismiss(card.id)}
               aria-label="Descartar"
-              className="text-pv-gray hover:text-white/70 transition-colors leading-none text-[11px] px-0.5"
+              className="text-pv-gray hover:text-white/70 transition-colors leading-none text-[11px] px-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
             >
               ✕
             </button>
@@ -118,7 +118,7 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
               <button
                 key={action.id}
                 onClick={() => onAction?.(action)}
-                className={`text-[10px] px-2 py-0.5 rounded ${classes}`}
+                className={`text-[10px] px-2 py-0.5 rounded ${classes} focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none`}
               >
                 {action.label}
               </button>
@@ -132,7 +132,7 @@ export default function AgentCard({ card, onAction, onDismiss }: Props) {
         <div className="border-t border-white/[0.06] px-2.5 pb-2">
           <button
             onClick={() => setShowReasoning(v => !v)}
-            className="text-[11px] text-pv-gray/70 hover:text-pv-gray mt-1.5 w-full text-left"
+            className="text-[11px] text-pv-gray/70 hover:text-pv-gray mt-1.5 w-full text-left focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           >
             {showReasoning ? '▲ Ocultar justificación' : '▾ ¿Por qué esta sugerencia?'}
           </button>

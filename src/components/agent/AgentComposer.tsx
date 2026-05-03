@@ -66,7 +66,7 @@ export default function AgentComposer({ onSend, onChip, contextChips, onExpandCh
           <button
             key={`${prompt.id}-${chipOffset}`}
             onClick={() => handleChip(prompt)}
-            className="text-[9.5px] bg-pv-accent/10 hover:bg-pv-accent/20 border border-pv-accent/30 text-pv-accent/80 rounded-full px-2 py-0.5 transition-colors cursor-pointer"
+            className="text-[9.5px] bg-pv-accent/10 hover:bg-pv-accent/20 border border-pv-accent/30 text-pv-accent/80 rounded-full px-2 py-0.5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none"
           >
             {prompt.icon} {prompt.label} ▸
           </button>
@@ -82,12 +82,12 @@ export default function AgentComposer({ onSend, onChip, contextChips, onExpandCh
           onKeyDown={handleKeyDown}
           placeholder="Pregúntale a tu agente…"
           rows={1}
-          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-[#C0D0E0] placeholder:text-pv-gray/50 outline-none focus:border-pv-accent/50 focus:bg-white/[0.09] resize-none"
+          className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-[#C0D0E0] placeholder:text-pv-gray/50 outline-none focus:border-pv-accent/50 focus:bg-white/[0.09] resize-none focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy"
         />
         <button
           onClick={handleSend}
           disabled={disabled}
-          className="ml-1.5 text-pv-accent hover:text-white disabled:opacity-30 transition-colors"
+          className="ml-1.5 text-pv-accent hover:text-white disabled:opacity-30 transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           aria-label="Enviar"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

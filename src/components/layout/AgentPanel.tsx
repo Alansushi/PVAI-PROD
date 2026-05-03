@@ -158,7 +158,7 @@ export default function AgentPanel() {
         {/* Refresh button */}
         <button
           onClick={doRefresh}
-          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5"
+          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title="Actualizar análisis"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -171,7 +171,7 @@ export default function AgentPanel() {
           <button
             ref={arButtonRef}
             onClick={() => setArPopoverOpen(p => !p)}
-            className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative ${arEnabled && agentMode !== 'solo_cuando_lo_pida' ? 'text-pv-accent' : ''}`}
+            className={`text-pv-gray hover:text-pv-accent transition-colors p-0.5 relative focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded ${arEnabled && agentMode !== 'solo_cuando_lo_pida' ? 'text-pv-accent' : ''}`}
             title="Modo del agente y auto-refresh"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -204,7 +204,7 @@ export default function AgentPanel() {
                       <button
                         key={mode}
                         onClick={() => handleModeChange(mode)}
-                        className={`flex-1 text-[9px] py-1 transition-colors ${
+                        className={`flex-1 text-[9px] py-1 transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none ${
                           agentMode === mode
                             ? 'bg-pv-accent/20 text-pv-accent'
                             : 'text-pv-gray hover:text-white/70'
@@ -232,7 +232,7 @@ export default function AgentPanel() {
                         <button
                           key={min}
                           onClick={() => handleArInterval(min)}
-                          className={`text-[10px] rounded-md py-1 font-semibold transition-colors ${
+                          className={`text-[10px] rounded-md py-1 font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none ${
                             arInterval === min
                               ? 'bg-pv-accent text-white'
                               : 'bg-white/[0.06] text-pv-gray hover:bg-white/[0.12]'
@@ -251,7 +251,7 @@ export default function AgentPanel() {
         {/* History button */}
         <button
           onClick={() => setHistoryOpen(true)}
-          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5"
+          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title="Historial del agente"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -263,7 +263,7 @@ export default function AgentPanel() {
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5"
+          className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title={collapsed ? 'Expandir panel' : 'Colapsar panel'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -309,7 +309,7 @@ export default function AgentPanel() {
             {/* Expand button */}
             <button
               onClick={() => setCollapsed(false)}
-              className="text-pv-accent hover:text-white transition-colors"
+              className="text-pv-accent hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
               title="Expandir"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
