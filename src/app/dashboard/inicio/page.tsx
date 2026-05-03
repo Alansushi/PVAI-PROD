@@ -9,6 +9,7 @@ import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { getKpiTone } from '@/lib/ui-helpers'
+import { getTeamLoad, TEAM_LOAD_CONFIG } from '@/lib/constants'
 
 const STATUS_DOT: Record<string, string> = {
   ok:     'bg-[#2A9B6F]',
@@ -199,7 +200,7 @@ export default function DashboardInicio() {
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
     .slice(0, 5)
 
-  const teamMap = new Map<string, { name: string; initials: string; color: string; done: number; total: number }>()
+  const teamMap = new Map<string, { name: string; initials: string; color: string; done: number; total: number; active: number }>()
   for (const p of projects) {
     for (const m of p.members) {
       const key = m.userId ?? m.name
@@ -209,8 +210,9 @@ export default function DashboardInicio() {
       if (existing) {
         existing.done  += memberDone
         existing.total += memberDeliverables.length
+        existing.active += memberDeliverables.length - memberDone
       } else {
-        teamMap.set(key, { name: m.name, initials: m.initials, color: m.color, done: memberDone, total: memberDeliverables.length })
+        teamMap.set(key, { name: m.name, initials: m.initials, color: m.color, done: memberDone, total: memberDeliverables.length, active: memberDeliverables.length - memberDone })
       }
     }
   }
@@ -487,30 +489,33 @@ export default function DashboardInicio() {
           <h2 className="text-[11px] font-bold uppercase tracking-[0.8px] text-pv-gray">
             Equipo del despacho
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {team.map((member) => {
-              const pct = member.total > 0 ? Math.round((member.done / member.total) * 100) : 0
+              const loadKey = getTeamLoad(member.active)
+              const load = TEAM_LOAD_CONFIG[loadKey]
               return (
                 <div
                   key={member.name}
                   className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-3 flex items-center gap-3"
                 >
+                  {/* Avatar */}
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
                     style={{ background: member.color }}
                   >
                     {member.initials}
                   </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-semibold text-white truncate">{member.name}</div>
-                    <div className="mt-1.5 h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#2E8FC0] rounded-full"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="text-[9px] text-pv-gray mt-1">
-                      {member.done}/{member.total} completadas
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <span className="text-[10px] text-pv-gray/70">
+                        {member.active} tarea{member.active !== 1 ? 's' : ''} activa{member.active !== 1 ? 's' : ''}
+                      </span>
+                      <span className={`inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${load.cls}`}>
+                        {load.label}
+                      </span>
                     </div>
                   </div>
                 </div>

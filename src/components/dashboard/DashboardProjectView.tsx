@@ -88,8 +88,6 @@ function sortLabel(sort: ColSort): string {
 }
 
 
-const MAX_VISIBLE = 3
-
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 const ACTION_LABEL: Record<string, string> = {
@@ -146,6 +144,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [velocityLoading, setVelocityLoading] = useState(true)
   const [editProjectOpen, setEditProjectOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'tablero' | 'analisis' | 'riesgos' | 'minutas'>('tablero')
+  const [moreOpen, setMoreOpen] = useState(false)
 
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
@@ -206,9 +205,6 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     fetchKPIs()
     fetchVelocity()
   }, [fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
-
-  const visibleMembers = members.slice(0, MAX_VISIBLE)
-  const overflow = members.length - MAX_VISIBLE
 
   const done         = deliverables.filter(d => d.status === 'ok').length
   const total        = deliverables.length
@@ -446,84 +442,107 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex justify-between items-start">
+      {/* Header — 3 zonas */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-6 md:gap-8 items-center">
+
+        {/* ZONA 1 — Identidad */}
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-[21px] font-black">{project.title}</h1>
             <button
               onClick={() => setEditProjectOpen(true)}
               title="Editar proyecto"
-              className="w-6 h-6 flex items-center justify-center rounded-md text-pv-gray hover:text-pv-accent hover:bg-pv-accent/10 transition-colors text-[13px]"
+              aria-label="Editar proyecto"
+              className="w-6 h-6 flex items-center justify-center rounded-md text-pv-gray hover:text-pv-accent hover:bg-pv-accent/10 transition-colors text-[13px] focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:outline-none"
             >
               ✏️
             </button>
           </div>
-          <div className="text-[11px] text-pv-gray mt-0.5">{project.type}</div>
+          <div className="text-[11px] text-pv-gray/70 mt-0.5">{project.type}</div>
         </div>
-        <div className="flex flex-wrap gap-1.5 items-center">
-          {/* Minuta button */}
+
+        {/* ZONA 2 — Avance (hero) */}
+        <div className="flex flex-col items-start md:items-center gap-1">
+          <div className="font-display text-[40px] md:text-[56px] font-black leading-none text-pv-accent">
+            {pct}%
+          </div>
+          <div className="w-full max-w-[240px] h-1 bg-pv-accent/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-pv-accent rounded-full transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="font-mono text-[11px] text-pv-gray/70">
+            {done}/{total} entregables
+          </div>
+        </div>
+
+        {/* ZONA 3 — Acciones */}
+        <div className="flex items-center gap-2">
+          {/* Chip de estado consolidado */}
+          {(risks.filter(r => r.status === 'open').length > 0 || isPredictiveRisk) ? (
+            <button
+              onClick={() => setActiveTab('riesgos')}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold bg-pv-red/10 border-pv-red/30 text-pv-red hover:bg-pv-red/20 transition-colors motion-safe:animate-pulse focus-visible:ring-2 focus-visible:ring-pv-red focus-visible:outline-none"
+              title="Ver riesgos activos"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-pv-red inline-block" />
+              Riesgo de delay
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold bg-pv-green/10 border-pv-green/30 text-pv-green">
+              <span className="w-1.5 h-1.5 rounded-full bg-pv-green inline-block" />
+              Al corriente
+            </div>
+          )}
+
+          {/* Botón primario único */}
           <button
-            onClick={() => setMinutaOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-[#2E8FC0] border border-[#2E8FC0]/30 rounded-lg hover:bg-[#2E8FC0]/10 transition-colors"
+            onClick={() => openNewTask()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold bg-pv-accent text-white rounded-lg hover:bg-pv-accent/90 transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:outline-none"
           >
-            ✦ Minuta
+            + Nueva tarea
           </button>
 
-          {/* Team avatars */}
-          <div className="flex items-center gap-1.5">
-            {visibleMembers.map(m => (
-              <div
-                key={m.id}
-                title={m.name}
-                onClick={() => setProfileMember(m)}
-                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-pv-navy cursor-pointer hover:ring-2 hover:ring-white/40 transition-all"
-                style={{ background: m.color }}
-              >
-                {m.initials}
-              </div>
-            ))}
-            {overflow > 0 && (
-              <button
-                onClick={() => setMembersListOpen(true)}
-                className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-bold text-pv-gray bg-white/[0.08] border-2 border-pv-navy cursor-pointer hover:ring-2 hover:ring-white/40 transition-all"
-                title={`Ver ${overflow} más`}
-              >
-                +{overflow}
-              </button>
+          {/* Menú "..." de acciones secundarias */}
+          <div className="relative">
+            <button
+              onClick={() => setMoreOpen(v => !v)}
+              aria-label="Más acciones"
+              aria-expanded={moreOpen}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-pv-gray hover:text-white hover:bg-white/10 transition-colors text-[13px] font-bold focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:outline-none"
+              title="Más acciones"
+            >
+              •••
+            </button>
+            {moreOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMoreOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 bg-[#0C1F35] border border-white/10 rounded-xl py-1.5 z-20 min-w-[170px] shadow-xl">
+                  <button
+                    onClick={() => { setMinutaOpen(true); setMoreOpen(false) }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-pv-gray hover:text-white hover:bg-white/[0.06] transition-colors"
+                  >
+                    ✦ Nueva minuta
+                  </button>
+                  <button
+                    onClick={() => { setInviteOpen(true); setMoreOpen(false) }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-pv-gray hover:text-white hover:bg-white/[0.06] transition-colors"
+                  >
+                    + Agregar colaborador
+                  </button>
+                  <button
+                    onClick={() => { setMembersListOpen(true); setMoreOpen(false) }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-pv-gray hover:text-white hover:bg-white/[0.06] transition-colors"
+                  >
+                    {members.length} persona{members.length !== 1 ? 's' : ''} en el equipo
+                  </button>
+                </div>
+              </>
             )}
-            <button
-              onClick={() => setInviteOpen(true)}
-              className="w-[30px] h-[30px] rounded-full border-2 border-dashed border-white/20 flex items-center justify-center text-base text-pv-gray hover:border-pv-accent hover:text-pv-accent hover:-translate-y-0.5 transition-all"
-              title="Agregar colaborador"
-            >
-              +
-            </button>
-            <button
-              onClick={() => setMembersListOpen(true)}
-              className="text-[10px] text-pv-gray ml-0.5 hover:text-pv-accent transition-colors"
-            >
-              {members.length} persona{members.length !== 1 ? 's' : ''}
-            </button>
           </div>
-          <div
-            className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${
-              project.status === 'ok'
-                ? 'bg-pv-green/10 border-pv-green/30 text-pv-green'
-                : project.status === 'warn'
-                ? 'bg-pv-amber/10 border-pv-amber/30 text-pv-amber'
-                : 'bg-pv-red/10 border-pv-red/30 text-pv-red'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1 ${STATUS_DOT[project.status] ?? 'bg-pv-gray'}`} />
-            {project.status === 'ok' ? 'Al corriente' : project.status === 'warn' ? 'En riesgo' : 'Crítico'}
-          </div>
-          {isPredictiveRisk && (
-            <span className="px-2.5 py-1 rounded-full border text-[10px] font-bold bg-pv-red/10 border-pv-red/30 text-pv-red animate-pulse">
-              ⚠ Riesgo de delay
-            </span>
-          )}
         </div>
+
       </div>
 
       {/* Tabs */}
@@ -554,18 +573,8 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         <ProjectCalendarWidget milestones={calendarMilestones} />
         <ProjectNotesWidget projectId={project.id} />
 
-        {/* Row 2 — KPI: Avance del proyecto */}
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-3">
-          <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-1.5">Avance del proyecto</div>
-          <div className="font-display text-[22px] font-black leading-none text-pv-accent">{pct}%</div>
-          <div className="text-[10px] text-pv-gray mt-0.5">{done}/{total} completadas</div>
-          <div className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-lg mt-1.5 bg-pv-accent/20 text-pv-accent">
-            📐 {project.type}
-          </div>
-        </div>
-
         {/* Row 2 — KPI: Tareas generadas/actualizadas con IA */}
-        <div className="bg-pv-purple/8 border border-pv-purple/20 rounded-xl px-3.5 py-3">
+        <div className="bg-pv-purple/8 border border-pv-purple/20 rounded-xl px-3.5 py-3 md:col-span-2">
           <div className="text-[9px] text-pv-gray uppercase tracking-[0.5px] mb-1.5">Tareas generadas con IA</div>
           <div className="font-display text-[22px] font-black leading-none text-[#B89EE8]">{agentPending}</div>
           <div className="text-[10px] text-pv-gray mt-0.5">pendientes desde la última minuta</div>
