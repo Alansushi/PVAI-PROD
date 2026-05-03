@@ -10,6 +10,7 @@ import InviteMemberModal from './InviteMemberModal'
 import DBMinutaModal from './DBMinutaModal'
 import CollaboratorProfileModal from './CollaboratorProfileModal'
 import ProjectCalendarWidget from './ProjectCalendarWidget'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { CalendarMilestone } from './ProjectCalendarWidget'
 import ProjectNotesWidget from './ProjectNotesWidget'
 import MinutasPanel from './MinutasPanel'
@@ -221,6 +222,9 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     warn:   deliverables.filter(d => d.status === 'warn'),
     danger: deliverables.filter(d => d.status === 'danger'),
   }
+
+  const showRiesgosTab = risksLoading || risks.length > 0
+  const safeActiveTab = (activeTab === 'riesgos' && !showRiesgosTab) ? 'tablero' : activeTab
 
   // Dynamic Gantt: if no manual ganttRows, compute from deliverables with dates
   const ganttRows = useMemo(() => {
@@ -525,16 +529,16 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       {/* Tabs */}
       <div className="flex gap-0.5 bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 w-fit">
         {([
-          { id: 'tablero',  label: 'Tablero' },
-          { id: 'analisis', label: 'Análisis' },
-          { id: 'riesgos',  label: 'Riesgos' },
-          { id: 'minutas',  label: 'Minutas' },
-        ] as const).map(tab => (
+          { id: 'tablero',  label: 'Tablero',  show: true },
+          { id: 'analisis', label: 'Análisis', show: true },
+          { id: 'riesgos',  label: 'Riesgos',  show: showRiesgosTab },
+          { id: 'minutas',  label: 'Minutas',  show: true },
+        ] as const).filter(tab => tab.show).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-              activeTab === tab.id
+              safeActiveTab === tab.id
                 ? 'bg-pv-accent text-white shadow-sm'
                 : 'text-pv-gray hover:text-white hover:bg-white/[0.06]'
             }`}
@@ -646,7 +650,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       )}
 
       {/* ── TAB: TABLERO ─────────────────────────────── */}
-      {activeTab === 'tablero' && (<>
+      {safeActiveTab === 'tablero' && (<>
 
       {/* Gantt — manual rows OR auto-generated from deliverables */}
       {ganttRows.length > 0 && (
@@ -826,6 +830,9 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
                     </div>
                   )
                 })}
+                {byStatus[col.key as keyof typeof byStatus].length === 0 && (
+                  <EmptyState compact title="Sin tareas" />
+                )}
               </div>
             </div>
           ))}
@@ -852,9 +859,10 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
             ))}
           </div>
         ) : packages.length === 0 ? (
-          <div className="px-4 py-6 text-center text-[11px] text-pv-gray/50 italic">
-            Sin paquetes. Crea uno para agrupar entregables con fechas de pre-entrega y entrega final.
-          </div>
+          <EmptyState
+            title="Sin paquetes"
+            hint="Crea uno para agrupar entregables con fechas de pre-entrega y entrega final."
+          />
         ) : (
           <div className="p-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {packages.map(pkg => {
@@ -938,7 +946,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       </>)} {/* end tablero */}
 
       {/* ── TAB: ANÁLISIS ────────────────────────────── */}
-      {activeTab === 'analisis' && (<>
+      {safeActiveTab === 'analisis' && (<>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         <KPIsPanel
           kpis={kpis}
@@ -952,7 +960,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       </>)} {/* end analisis */}
 
       {/* ── TAB: RIESGOS ─────────────────────────────── */}
-      {activeTab === 'riesgos' && (
+      {safeActiveTab === 'riesgos' && (
         <RisksPanel
           risks={risks}
           loading={risksLoading}
@@ -962,7 +970,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       )}
 
       {/* ── TAB: MINUTAS ─────────────────────────────── */}
-      {activeTab === 'minutas' && (<>
+      {safeActiveTab === 'minutas' && (<>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {activityLoading ? (
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
