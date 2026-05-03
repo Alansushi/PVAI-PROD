@@ -88,8 +88,6 @@ function sortLabel(sort: ColSort): string {
 }
 
 
-const MAX_VISIBLE = 3
-
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 const ACTION_LABEL: Record<string, string> = {
@@ -207,9 +205,6 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     fetchKPIs()
     fetchVelocity()
   }, [fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
-
-  const visibleMembers = members.slice(0, MAX_VISIBLE)
-  const overflow = members.length - MAX_VISIBLE
 
   const done         = deliverables.filter(d => d.status === 'ok').length
   const total        = deliverables.length
