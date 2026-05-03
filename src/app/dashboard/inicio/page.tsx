@@ -409,13 +409,27 @@ export default function DashboardInicio() {
                     </div>
                     <div className="text-right">
                       {p.velocityDelta > 0 ? (
-                        <div className="text-[11px] font-medium text-[#2A9B6F]">↑ +{p.velocityDelta}</div>
+                        <div
+                          className="text-[11px] font-medium text-pv-green cursor-default"
+                          title={`↑ +${p.velocityDelta} tar/sem`}
+                        >
+                          Adelantado
+                        </div>
                       ) : p.velocityDelta < 0 ? (
-                        <div className="text-[11px] font-medium text-[#D94F4F]">↓ {p.velocityDelta}</div>
+                        <div
+                          className="text-[11px] font-medium text-pv-red cursor-default"
+                          title={`↓ ${p.velocityDelta} tar/sem`}
+                        >
+                          Atrasado
+                        </div>
                       ) : (
-                        <div className="text-[11px] font-medium text-pv-gray">→ 0</div>
+                        <div
+                          className="text-[11px] font-medium text-pv-amber cursor-default"
+                          title="→ 0 tar/sem"
+                        >
+                          Cumpliendo plazos
+                        </div>
                       )}
-                      <div className="text-[9px] text-pv-gray">{p.velocityThisWeek} tar/sem</div>
                     </div>
                     <div>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badge.bg} ${badge.border} ${badge.text} whitespace-nowrap`}>
