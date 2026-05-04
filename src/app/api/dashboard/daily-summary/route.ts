@@ -21,6 +21,30 @@ function getGreeting(): string {
   return 'Buenas noches'
 }
 
+const VALID_EXECUTE_TARGETS = new Set([
+  'riesgos', 'velocidad', 'prediccion', 'bloqueados',
+  'resumen_ejecutivo', 'reporte_semanal', 'avance',
+])
+
+function parseActionsJson(raw: string): { actions: { label: string; type: string; target: string }[] } {
+  try {
+    const parsed = JSON.parse(raw.trim())
+    if (!Array.isArray(parsed?.actions)) return { actions: [] }
+    const actions = parsed.actions.filter(
+      (a: { label?: unknown; type?: unknown; target?: unknown }) =>
+        typeof a.label === 'string' &&
+        (a.type === 'navigate' || a.type === 'execute') &&
+        typeof a.target === 'string' &&
+        (a.type === 'navigate'
+          ? a.target.startsWith('/dashboard')
+          : VALID_EXECUTE_TARGETS.has(a.target as string))
+    )
+    return { actions: actions.slice(0, 3) }
+  } catch {
+    return { actions: [] }
+  }
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -54,12 +78,12 @@ export async function POST(req: NextRequest) {
     ? body.clientDate
     : todayISO()
 
-  // Idempotency: return existing record if already generated today (saves Anthropic API call)
+  // Idempotency: return existing record if already generated today with actions
   const existing = await db.userDailySummary.findUnique({
     where: { userId_date: { userId, date: today } },
   }).catch(() => null)
 
-  if (existing) {
+  if (existing?.actionsJson !== undefined) {
     return NextResponse.json({ summary: existing })
   }
 
@@ -74,7 +98,7 @@ export async function POST(req: NextRequest) {
               id: true,
               status: true,
               deliverables: {
-                select: { status: true },
+                select: { status: true, dueDate: true },
               },
             },
           },
@@ -84,11 +108,10 @@ export async function POST(req: NextRequest) {
   })
 
   const allProjects = memberships.flatMap(
-    (m: { organization: { projects: Array<{ id: string; status: string; deliverables: Array<{ status: string }> }> } }) =>
+    (m: { organization: { projects: Array<{ id: string; status: string; deliverables: Array<{ status: string; dueDate: Date | null }> }> } }) =>
       m.organization.projects
   )
 
-  // De-duplicate projects (user may belong to multiple orgs that share nothing, but guard anyway)
   const seenIds = new Set<string>()
   const uniqueProjects = allProjects.filter(
     (p: { id: string }) => !seenIds.has(p.id) && seenIds.add(p.id)
@@ -100,8 +123,15 @@ export async function POST(req: NextRequest) {
   ).length
 
   const allDeliverables = uniqueProjects.flatMap(
-    (p: { deliverables: Array<{ status: string }> }) => p.deliverables
+    (p: { deliverables: Array<{ status: string; dueDate: Date | null }> }) => p.deliverables
   )
+
+  const now = new Date()
+  const overdueCount = allDeliverables.filter(
+    (d: { status: string; dueDate: Date | null }) =>
+      d.status !== 'ok' && d.dueDate && new Date(d.dueDate) < now
+  ).length
+
   const compliance =
     allDeliverables.length === 0
       ? 100
@@ -111,64 +141,70 @@ export async function POST(req: NextRequest) {
             100
         )
 
-  // Derive first name from session
   const firstName = session.user.name?.split(' ')[0] ?? ''
   const greetingWord = getGreeting()
   const namePart = firstName ? ` ${firstName}` : ''
 
-  // Attempt AI generation; fall back to plain text if unavailable
   let content: string
+  let actionsJson: { actions: { label: string; type: string; target: string }[] } = { actions: [] }
+
+  const complianceClass = compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
+  const riskLabel = atRisk === 0
+    ? `<span class="ok">todos al corriente</span>`
+    : `<span class="nl">${atRisk}</span> <span class="warn">en riesgo</span>`
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    // Plain text fallback
-    const riskLabelPlain = atRisk > 0 ? `, <span class="warn">${atRisk} en riesgo</span>` : ', <span class="ok">todos al corriente</span>'
-    const complianceClassPlain = compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
-    content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}${riskLabelPlain}. Cumplimiento de entregables: <span class="${complianceClassPlain}">${compliance}%</span>.`
+    content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.`
   } else {
     const userPrompt = `Genera exactamente 2 oraciones en español para el resumen diario de un director de arquitectura/diseño.
 
-Datos:
+Datos del portafolio:
 - Proyectos totales: ${total}
 - Proyectos en riesgo (status warn o danger): ${atRisk}
 - Cumplimiento de entregables: ${compliance}%
+- Entregables vencidos: ${overdueCount}
 
-Oración 1: Saludo de apertura. Usa "${greetingWord}${namePart}, esto es lo que importa hoy." — si el nombre está vacío, escribe simplemente "Hola, esto es lo que importa hoy."
-Oración 2: Resume el estado del portafolio en una sola oración, usando estas clases HTML inline para resaltar datos: <span class="nl"> para números y datos clave, <span class="ok"> para cosas positivas, <span class="warn"> para advertencias, <span class="danger"> para riesgos críticos.
+Oración 1: Saludo. Usa "${greetingWord}${namePart}, esto es lo que importa hoy." — si el nombre está vacío, escribe simplemente "Hola, esto es lo que importa hoy."
+Oración 2: Resume el estado del portafolio en una sola oración, usando estas clases HTML inline: <span class="nl"> para números, <span class="ok"> para cosas positivas, <span class="warn"> para advertencias, <span class="danger"> para riesgos críticos.
 
-Ejemplos de oración 2:
-- "Tienes <span class=\\"nl\\">3</span> proyectos activos, <span class=\\"warn\\">1 en riesgo</span> y un cumplimiento del <span class=\\"ok\\">87%</span>."
-- "Tu portafolio tiene <span class=\\"nl\\">5</span> proyectos, <span class=\\"ok\\">todos al corriente</span> con <span class=\\"ok\\">${compliance}% de cumplimiento</span>."
+Después de las 2 oraciones, escribe exactamente el separador "---ACTIONS---" en una línea nueva, seguido de un JSON con hasta 3 acciones concretas para hoy:
+{"actions":[{"label":"Ver proyectos en riesgo","type":"navigate","target":"/dashboard/inicio"},{"label":"Generar resumen ejecutivo","type":"execute","target":"resumen_ejecutivo"}]}
 
-Proyectos totales: ${total}. En riesgo: ${atRisk}. Cumplimiento: ${compliance}%.
-Responde solo con las 2 oraciones en HTML, sin explicaciones adicionales.`
+Reglas para las acciones:
+- type "navigate": target debe ser una URL válida que empiece con /dashboard
+- type "execute": target debe ser uno de: riesgos, velocidad, prediccion, bloqueados, resumen_ejecutivo, reporte_semanal, avance
+- Si no hay ${atRisk} proyectos en riesgo, no sugieras "ver riesgos"
+- Si ${overdueCount} entregables están vencidos, sugiere revisarlos
+- Si todo va bien (atRisk=0, cumplimiento>=80), sugiere un análisis proactivo
+- Si no hay acciones relevantes, devuelve {"actions":[]}
 
-    const complianceClassFallback = compliance >= 80 ? 'ok' : compliance >= 50 ? 'warn' : 'danger'
-    const riskLabelFallback = atRisk === 0
-      ? `<span class="ok">todos al corriente</span>`
-      : `<span class="nl">${atRisk}</span> <span class="warn">en riesgo</span>`
+Responde SOLO con las 2 oraciones HTML seguidas del separador y el JSON. Sin texto adicional.`
 
     try {
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 180,
+        max_tokens: 500,
         messages: [{ role: 'user', content: userPrompt }],
       })
 
-      content =
-        response.content[0].type === 'text'
-          ? response.content[0].text.trim()
-          : `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabelFallback}, cumplimiento <span class="${complianceClassFallback}">${compliance}%</span>.`
+      const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : ''
+      const separatorIdx = raw.indexOf('---ACTIONS---')
+
+      if (separatorIdx !== -1) {
+        content = raw.slice(0, separatorIdx).trim()
+        actionsJson = parseActionsJson(raw.slice(separatorIdx + 13))
+      } else {
+        content = raw || `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.`
+      }
     } catch {
-      // Plain text fallback on API error
-      content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabelFallback}, cumplimiento <span class="${complianceClassFallback}">${compliance}%</span>.`
+      content = `${greetingWord}${namePart}, esto es lo que importa hoy. Tienes <span class="nl">${total}</span> proyecto${total !== 1 ? 's' : ''} activo${total !== 1 ? 's' : ''}, ${riskLabel}, cumplimiento <span class="${complianceClass}">${compliance}%</span>.`
     }
   }
 
-  // Persist and return — upsert avoids P2002 race condition on @@unique([userId, date])
   const summary = await db.userDailySummary.upsert({
     where: { userId_date: { userId, date: today } },
-    update: {},
-    create: { userId, date: today, content },
+    update: { actionsJson },
+    create: { userId, date: today, content, actionsJson },
   })
 
   return NextResponse.json({ summary })
