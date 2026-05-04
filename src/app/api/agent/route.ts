@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
 
   const recentCount = await prisma.agentMessage.count({
     where: {
-      projectId: { in: userProjectIds },
+      userId: session.user.id,
       role: 'user',
       createdAt: { gte: oneMinuteAgo },
     },
