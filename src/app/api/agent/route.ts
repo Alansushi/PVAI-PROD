@@ -146,6 +146,7 @@ ${memberLines || '(sin miembros asignados)'}`
 }
 
 async function buildPortfolioContext(userId: string): Promise<string> {
+  type Row = { title: string; status: string; deliverables: { dueDate: Date | null }[]; _count: { deliverables: number } }
   const projects = await prisma.project.findMany({
     where: { members: { some: { userId } } },
     include: {
@@ -154,10 +155,10 @@ async function buildPortfolioContext(userId: string): Promise<string> {
     },
     take: 10,
     orderBy: { updatedAt: 'desc' },
-  }) as unknown as any[]
+  }) as unknown as Row[]
 
-  const lines = projects.map((p: any) => {
-    const overdue = (p.deliverables || []).filter((d: any) => d.dueDate && new Date(d.dueDate) < new Date()).length
+  const lines = projects.map((p) => {
+    const overdue = p.deliverables.filter(d => d.dueDate && new Date(d.dueDate) < new Date()).length
     return `- ${p.title} | estado: ${p.status} | vencidos: ${overdue}/${p._count.deliverables}`
   })
   return `Portafolio (${projects.length} proyectos):\n${lines.join('\n')}`
@@ -205,10 +206,6 @@ export async function POST(req: NextRequest) {
   // Rate limit: 5 messages per minute per user (across all their projects)
   const oneMinuteAgo = new Date(Date.now() - 60_000)
   const orgIds = memberships.map(m => m.organizationId)
-  const userProjectIds = await prisma.project.findMany({
-    where: { organizationId: { in: orgIds } },
-    select: { id: true },
-  }).then(ps => ps.map(p => p.id))
 
   const recentCount = await prisma.agentMessage.count({
     where: {
