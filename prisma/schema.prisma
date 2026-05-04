@@ -224,6 +224,7 @@ model AgentMessage {
   undone      Boolean  @default(false)
   beforeState Json?
   reasoning   String?
+  scope       String?  // 'project' | 'portfolio' — null means project (backward compat)
   createdAt   DateTime @default(now())
 
   project   Project? @relation(fields: [projectId], references: [id])
