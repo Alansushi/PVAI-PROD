@@ -79,6 +79,19 @@ export interface AgentMessage {
   time: string
 }
 
+export interface ProjectTemplate {
+  id: string
+  label: string
+  description: string
+  icon: string
+  projectType: string
+  estimatedDuration: number
+  defaultRoles: { label: string; required: boolean }[]
+  defaultMilestones: { label: string; daysOffset: number }[]
+  defaultDeliverables: { title: string; daysOffset: number; phase?: string }[]
+  defaultSLAs?: { label: string; days: number }[]
+}
+
 export type AgentCardType = 'alerta' | 'recomendacion' | 'insight' | 'pregunta'
 
 export interface AgentCardAction {

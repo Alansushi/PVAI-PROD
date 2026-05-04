@@ -203,6 +203,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No organization found' }, { status: 404 })
   }
 
+  // Read user's agentMode to shape response length
+  const agentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentMode: true },
+  })
+  const agentMode = agentUser?.agentMode ?? 'equilibrado'
+
   // Rate limit: 5 messages per minute per user (across all their projects)
   const oneMinuteAgo = new Date(Date.now() - 60_000)
   const orgIds = memberships.map(m => m.organizationId)
@@ -426,6 +433,20 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     }
   }
 
+  // Mode-specific prompt suffix and token budget (only for regular queries, not minuta/reporte)
+  const MODE_SUFFIX: Record<string, string> = {
+    solo_cuando_lo_pida: '\n\nModo: Responde con máximo 1 punto. Solo si hay algo crítico. Sé breve y conservador.',
+    equilibrado: '\n\nModo: Genera 2-3 puntos con balance entre alertas y oportunidades.',
+    proactivo: '\n\nModo: Genera 3-5 puntos. Incluye sugerencias de mejora aunque no sean urgentes.',
+  }
+  const MODE_TOKENS: Record<string, number> = {
+    solo_cuando_lo_pida: 300,
+    equilibrado: 600,
+    proactivo: 1024,
+  }
+  const modeSystemPrompt = SYSTEM_PROMPT + (MODE_SUFFIX[agentMode] ?? MODE_SUFFIX['equilibrado'])
+  const modeMaxTokens = MODE_TOKENS[agentMode] ?? 600
+
   try {
     let userContent: string
     if (view === 'inicio') {
@@ -441,8 +462,8 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
 
     const response = await client.messages.create({
       model,
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      max_tokens: modeMaxTokens,
+      system: modeSystemPrompt,
       messages: [
         {
           role: 'user',

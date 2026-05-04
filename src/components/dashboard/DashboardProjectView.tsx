@@ -24,6 +24,7 @@ import VelocityWidget from './VelocityWidget'
 import CapacityWidget from './CapacityWidget'
 import ProjectEditModal from './ProjectEditModal'
 import MembersListModal from './MembersListModal'
+import ShareSummaryDialog from '@/components/share/ShareSummaryDialog'
 
 type ProjectWithRelations = DBProjectWithRelations
 
@@ -127,6 +128,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [defaultStatus, setDefaultStatus] = useState<'ok' | 'warn' | 'danger'>('warn')
   const [profileMember, setProfileMember] = useState<DBProjectMember | null>(null)
   const [membersListOpen, setMembersListOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [activityLogs, setActivityLogs] = useState<DBAuditLogEntry[]>([])
   const [minutasKey, setMinutasKey] = useState(0)
   const [colSorts, setColSorts] = useState<Record<string, ColSort>>({
@@ -543,6 +545,12 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMoreOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 bg-[#0C1F35] border border-white/10 rounded-xl py-1.5 z-20 min-w-[170px] shadow-xl">
+                  <button
+                    onClick={() => { setShareOpen(true); setMoreOpen(false) }}
+                    className="w-full text-left px-3 py-2 text-[11px] text-pv-gray hover:text-white hover:bg-white/[0.06] transition-colors"
+                  >
+                    ↗ Compartir resumen
+                  </button>
                   <button
                     onClick={() => { setMinutaOpen(true); setMoreOpen(false) }}
                     className="w-full text-left px-3 py-2 text-[11px] text-pv-gray hover:text-white hover:bg-white/[0.06] transition-colors"
@@ -1187,6 +1195,14 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         onClose={() => setEditProjectOpen(false)}
         project={project}
         onSaved={updated => setProject(prev => ({ ...prev, ...updated }))}
+      />
+
+      {/* ShareSummaryDialog */}
+      <ShareSummaryDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        scope="project"
+        projectId={project.id}
       />
     </div>
   )

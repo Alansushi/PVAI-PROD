@@ -38,6 +38,7 @@ model User {
   minutas               ProcessedMinuta[]
   invitationsSent       Invitation[]   @relation("InvitationsSent")
   dailySummaries        UserDailySummary[]
+  sharedSummaries       SharedSummary[]
 }
 
 model Organization {
@@ -266,12 +267,13 @@ model Notification {
 }
 
 model UserDailySummary {
-  id        String   @id @default(cuid())
-  userId    String
-  date      String   // "YYYY-MM-DD" — enforces one per user per day
-  content   String
-  dismissed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  date        String   // "YYYY-MM-DD" — enforces one per user per day
+  content     String
+  dismissed   Boolean  @default(false)
+  actionsJson Json?
+  createdAt   DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -411,4 +413,18 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model SharedSummary {
+  id        String   @id @default(cuid())
+  userId    String
+  scope     String   // 'portfolio' | 'project'
+  projectId String?
+  content   String
+  sentVia   String?  // 'clipboard' | 'email'
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

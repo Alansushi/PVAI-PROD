@@ -215,12 +215,19 @@ export interface DBAgentMessage {
   createdAt: Date
 }
 
+export interface DailySummaryAction {
+  label: string
+  type: 'navigate' | 'execute'
+  target: string
+}
+
 export interface DBUserDailySummary {
   id: string
   userId: string
   date: string
   content: string
   dismissed: boolean
+  actionsJson: { actions: DailySummaryAction[] } | null
   createdAt: Date
 }
 

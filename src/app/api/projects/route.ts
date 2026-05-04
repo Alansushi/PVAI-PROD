@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
+import { ALL_TEMPLATES } from '@/lib/templates'
+import { addDays } from '@/lib/utils'
 
 export async function GET() {
   const session = await auth()
@@ -104,7 +106,6 @@ export async function POST(req: NextRequest) {
   const allMemberships = await prisma.orgMember.findMany({
     where: { userId: session.user.id },
   })
-  // Prefer owner/member org; guests cannot create projects in orgs where they are guests
   const membership = allMemberships.find(m => m.role !== 'guest') ?? null
 
   if (!membership) {
@@ -112,38 +113,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { title, type, status, startDate, endDate, nextPaymentAmount, nextPaymentStatus, budget, billedAmount } = body
+  const {
+    title, type, status, startDate, endDate,
+    nextPaymentAmount, nextPaymentStatus, budget, billedAmount,
+    templateId, selectedDeliverables,
+  } = body
 
   if (!title || !type) {
     return NextResponse.json({ error: 'title and type are required' }, { status: 400 })
   }
 
-  const project = await prisma.project.create({
-    data: {
-      organizationId: membership.organizationId,
-      title,
-      type,
-      status: status ?? 'ok',
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      nextPaymentAmount,
-      nextPaymentStatus,
-      budget: budget != null ? Number(budget) : undefined,
-      billedAmount: billedAmount != null ? Number(billedAmount) : undefined,
-    },
-  })
-
-  await createAuditLog({
-    userId: session.user.id,
-    action: 'create',
-    entity: 'project',
-    entityId: project.id,
-    entityName: project.title,
-    projectId: project.id,
-    newValue: { title, type, status },
-  })
-
-  // Auto-add creator as project member
+  // Resolve creator name before transaction (read-only)
   const creator = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { name: true },
@@ -154,16 +134,83 @@ export async function POST(req: NextRequest) {
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     : creatorName.slice(0, 2).toUpperCase()
 
-  await prisma.projectMember.create({
-    data: {
-      projectId: project.id,
-      userId: session.user.id,
-      name: creatorName,
-      initials,
-      color: '#2E8FC0',
-      role: 'Colaborador',
-      isExternal: false,
-    },
+  const template = templateId ? ALL_TEMPLATES.find(t => t.id === templateId) ?? null : null
+  const hasTemplateDeliverables =
+    template && template.id !== 'vacio' && Array.isArray(selectedDeliverables) && selectedDeliverables.length > 0
+  const base = startDate ? new Date(startDate) : new Date()
+
+  const project = await prisma.$transaction(async (tx) => {
+    const proj = await tx.project.create({
+      data: {
+        organizationId: membership.organizationId,
+        title,
+        type,
+        status: status ?? 'ok',
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        nextPaymentAmount,
+        nextPaymentStatus,
+        budget: budget != null ? Number(budget) : undefined,
+        billedAmount: billedAmount != null ? Number(billedAmount) : undefined,
+      },
+    })
+
+    await tx.projectMember.create({
+      data: {
+        projectId: proj.id,
+        userId: session.user.id,
+        name: creatorName,
+        initials,
+        color: '#2E8FC0',
+        role: 'Colaborador',
+        isExternal: false,
+      },
+    })
+
+    if (hasTemplateDeliverables) {
+      const pkg = await tx.deliverablePackage.create({
+        data: { projectId: proj.id, name: 'Fase inicial' },
+      })
+
+      for (const d of selectedDeliverables as { title: string; daysOffset: number; phase?: string }[]) {
+        await tx.deliverable.create({
+          data: {
+            projectId: proj.id,
+            packageId: pkg.id,
+            name: d.title,
+            dueDate: addDays(base, d.daysOffset),
+            createdById: session.user.id,
+            createdByName: creatorName,
+          },
+        })
+      }
+
+      const milestones = template!.defaultMilestones
+      for (let i = 0; i < milestones.length; i++) {
+        const m = milestones[i]
+        await tx.milestone.create({
+          data: {
+            projectId: proj.id,
+            packageId: pkg.id,
+            type: i === milestones.length - 1 ? 'final' : 'pre-entrega',
+            label: m.label,
+            date: addDays(base, m.daysOffset),
+          },
+        })
+      }
+    }
+
+    return proj
+  })
+
+  await createAuditLog({
+    userId: session.user.id,
+    action: 'create',
+    entity: 'project',
+    entityId: project.id,
+    entityName: project.title,
+    projectId: project.id,
+    newValue: { title, type, status, templateId: templateId ?? 'vacio' },
   })
 
   return NextResponse.json(project, { status: 201 })
