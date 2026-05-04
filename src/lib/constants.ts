@@ -32,3 +32,5 @@ export function getTeamLoad(active: number): TeamLoadKey {
   if (active < TEAM_LOAD_THRESHOLDS.HIGH) return 'busy'
   return 'saturated'
 }
+
+export const GANTT_THRESHOLD = 5

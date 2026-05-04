@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage, DBProjectRisk, DBProjectKPI, DBVelocityWeek } from '@/lib/db-types'
-import { PRIORITY_COLORS } from '@/lib/constants'
+import { PRIORITY_COLORS, GANTT_THRESHOLD } from '@/lib/constants'
 import { toLocalDate } from '@/lib/dates'
 import DBTaskModal from './DBTaskModal'
 import InviteMemberModal from './InviteMemberModal'
 import DBMinutaModal from './DBMinutaModal'
 import CollaboratorProfileModal from './CollaboratorProfileModal'
-import ProjectCalendarWidget from './ProjectCalendarWidget'
 import { EmptyState } from '@/components/ui/EmptyState'
-import type { CalendarMilestone } from './ProjectCalendarWidget'
+import ProjectTimelineWidget from './ProjectTimelineWidget'
+import PriorityList from './PriorityList'
 import ProjectNotesWidget from './ProjectNotesWidget'
 import MinutasPanel from './MinutasPanel'
 import PackageModal from './PackageModal'
@@ -145,6 +145,19 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [editProjectOpen, setEditProjectOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'tablero' | 'analisis' | 'riesgos' | 'minutas'>('tablero')
   const [moreOpen, setMoreOpen] = useState(false)
+
+  type TableroView = 'lista' | 'gantt' | 'kanban'
+  const [tableroView, setTableroView] = useState<TableroView>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`pvai_project_${projectProp.id}_view`)
+      if (stored === 'lista' || stored === 'gantt' || stored === 'kanban') return stored
+    }
+    const withDates = projectProp.deliverables.filter(d => d.startDate && d.dueDate)
+    const estimated = projectProp.ganttRows.length > 0
+      ? projectProp.ganttRows.length
+      : withDates.length
+    return estimated >= GANTT_THRESHOLD ? 'gantt' : 'lista'
+  })
 
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
@@ -289,18 +302,6 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     return daysBetween(baseDate, new Date())
   }, [baseDate])
 
-  // Calendar milestones from packages
-  const calendarMilestones = useMemo<CalendarMilestone[]>(() =>
-    packages.flatMap(p =>
-      p.milestones.map(m => ({
-        id: m.id,
-        title: `${m.label ?? p.name} (${m.type})`,
-        date: new Date(m.date).toISOString().slice(0, 10),
-        type: m.type,
-      })),
-    ),
-  [packages])
-
   // Next upcoming pre-entrega
   const nextPreEntrega = useMemo(() => {
     const today = new Date()
@@ -347,6 +348,13 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       }),
     ).filter(m => m.offset >= 0 && m.offset <= ganttTotalDays)
   }, [packages, baseDate, ganttTotalDays, ganttRows.length])
+
+  function changeTableroView(view: TableroView) {
+    setTableroView(view)
+    try {
+      localStorage.setItem(`pvai_project_${project.id}_view`, view)
+    } catch {}
+  }
 
   function openNewTask(status: 'ok' | 'warn' | 'danger' = 'warn') {
     setEditingDeliverable(null)
@@ -569,8 +577,13 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
 
       {/* 2×2 widget grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {/* Row 1 — Calendar + Notes */}
-        <ProjectCalendarWidget milestones={calendarMilestones} />
+        {/* Row 1 — Timeline + Notes */}
+        <Suspense fallback={<div className="h-[150px] bg-white/[0.04] rounded-xl animate-pulse" />}>
+          <ProjectTimelineWidget
+            deliverables={deliverables}
+            onOpenTask={openEditTask}
+          />
+        </Suspense>
         <ProjectNotesWidget projectId={project.id} />
 
         {/* Row 2 — KPI: Tareas generadas/actualizadas con IA */}
@@ -661,16 +674,71 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       {/* ── TAB: TABLERO ─────────────────────────────── */}
       {safeActiveTab === 'tablero' && (<>
 
-      {/* Gantt — manual rows OR auto-generated from deliverables */}
-      {ganttRows.length > 0 && (
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
-            <h3 className="text-xs font-semibold">Cronograma</h3>
-            {project.ganttRows.length === 0 && (
-              <span className="text-[9px] text-pv-gray/60 italic">Generado desde entregables</span>
-            )}
+      {/* View toggle */}
+      <div className="flex justify-end">
+        <div
+          role="tablist"
+          aria-label="Vista de entregables"
+          className="flex"
+        >
+          {([
+            { id: 'lista',  label: 'Lista' },
+            { id: 'gantt',  label: 'Cronograma' },
+            { id: 'kanban', label: 'Kanban' },
+          ] as const).map((v, i, arr) => (
+            <button
+              key={v.id}
+              role="tab"
+              aria-selected={tableroView === v.id}
+              onClick={() => changeTableroView(v.id)}
+              className={[
+                'px-3 py-1 text-[10px] font-semibold transition-colors border border-white/[0.08]',
+                i === 0 ? 'rounded-l-lg' : '',
+                i === arr.length - 1 ? 'rounded-r-lg' : '',
+                i > 0 ? '-ml-px' : '',
+                tableroView === v.id
+                  ? 'bg-pv-accent text-white z-10 relative'
+                  : 'bg-white/[0.06] text-pv-gray hover:text-white hover:bg-white/[0.10]',
+              ].join(' ')}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Deliverables panel — single toggled view */}
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
+          <h3 className="text-xs font-semibold">Entregables</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-pv-gray">{done}/{total} completados</span>
+            <button
+              onClick={() => openNewTask('warn')}
+              className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors"
+            >
+              <span className="text-[12px] leading-none">+</span>
+              Nueva tarea
+            </button>
           </div>
-          {/* Date header */}
+        </div>
+
+        {/* Lista view */}
+        {tableroView === 'lista' && (
+          <PriorityList deliverables={deliverables} onOpenTask={openEditTask} />
+        )}
+
+        {/* Gantt view (threshold-aware) */}
+        {tableroView === 'gantt' && ganttRows.length === 0 && (
+          <EmptyState
+            title="Sin cronograma"
+            hint="Agrega fechas de inicio y vencimiento a los entregables para ver el cronograma."
+          />
+        )}
+        {tableroView === 'gantt' && ganttRows.length > 0 && ganttRows.length < GANTT_THRESHOLD && (
+          <PriorityList deliverables={deliverables} onOpenTask={openEditTask} />
+        )}
+        {tableroView === 'gantt' && ganttRows.length >= GANTT_THRESHOLD && (<>
           {ganttDates.length > 0 && (
             <div className="grid border-b border-white/[0.06]" style={{ gridTemplateColumns: '155px 1fr' }}>
               <div className="px-4 py-1.5 text-[9px] text-pv-gray/50 uppercase tracking-[0.5px]">Tarea</div>
@@ -720,14 +788,12 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
                     <small className="block text-[9px] text-pv-gray mt-px">{r.ownerName}</small>
                   </div>
                   <div className="relative h-[34px]">
-                    {/* Today line in row */}
                     {todayOffset >= 0 && todayOffset <= ganttTotalDays && (
                       <div
                         className="absolute top-0 bottom-0 w-px bg-pv-accent/20 z-0"
                         style={{ left: `${(todayOffset / ganttTotalDays) * 100}%` }}
                       />
                     )}
-                    {/* Milestone lines in row */}
                     {milestoneOffsets.map((m, i) => (
                       <div
                         key={`mrow-${i}`}
@@ -746,107 +812,94 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
               )
             })}
           </div>
-        </div>
-      )}
+        </>)}
 
-      {/* Kanban */}
-      <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl overflow-hidden">
-        <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
-          <h3 className="text-xs font-semibold">Entregables</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-pv-gray">{done}/{total} completados</span>
-            <button
-              onClick={() => openNewTask('warn')}
-              className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors"
-            >
-              <span className="text-[12px] leading-none">+</span>
-              Nueva tarea
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-        <div className="grid border-t border-white/[0.07] min-w-[540px]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-          {COL_CONFIG.map(col => (
-            <div key={col.key} className="border-r border-white/[0.06] last:border-r-0 flex flex-col min-h-[180px] min-w-[180px]">
-              <div className={`px-3 py-2 flex items-center justify-between border-b border-white/[0.06] ${col.headCls}`}>
-                <span className={`text-[10px] font-bold uppercase tracking-[0.6px] flex items-center gap-1.5 ${col.cls}`}>
-                  {col.label}
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${col.countCls}`}>
-                    {byStatus[col.key as keyof typeof byStatus].length}
-                  </span>
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setColSorts(prev => ({ ...prev, [col.key]: nextSort(prev[col.key]) }))}
-                    title="Cambiar orden"
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded text-pv-accent bg-pv-accent/10 hover:bg-pv-accent/20 transition-colors"
-                  >
-                    {sortLabel(colSorts[col.key])}
-                  </button>
-                  <button
-                    onClick={() => openNewTask(col.key as 'ok' | 'warn' | 'danger')}
-                    className="text-[16px] leading-none text-pv-gray hover:text-white transition-colors"
-                    title="Agregar tarea en esta columna"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-              <div className="p-2 flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: '320px' }}>
-                {getSorted(byStatus[col.key as keyof typeof byStatus], colSorts[col.key]).map(d => {
-                  const ownerName = d.ownerName ?? '—'
-                  const dateVal = toLocalDate(d.dueDate)
-                  const dateStr = dateVal
-                    ? dateVal.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-                    : '-'
-                  return (
-                    <div
-                      key={d.id}
-                      onClick={() => openEditTask(d)}
-                      title="Click para editar"
-                      className={`bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-2.5 cursor-pointer transition-all hover:bg-white/[0.07] hover:-translate-y-px hover:border-white/15 ${col.borderCls}`}
-                    >
-                      <div className="text-[11px] font-semibold mb-1 leading-snug">
-                        {d.name}
-                        {d.meta === 'minuta' && (
-                          <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ minuta</span>
-                        )}
-                        {d.meta === 'agente' && (
-                          <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ agente</span>
-                        )}
-                      </div>
-                      <div className="text-[9px] text-pv-gray flex items-center gap-1 flex-wrap">
-                        <span
-                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ background: PRIORITY_COLORS[d.priority as keyof typeof PRIORITY_COLORS] ?? '#8A9BB0' }}
-                        />
-                        <span className="text-pv-gray">{ownerName}</span>
-                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded ml-auto ${DATE_CLS[d.status]}`}>
-                          {dateStr}
-                        </span>
-                      </div>
-                      {d.createdByName && (
-                        <div className="text-[9px] text-pv-gray/60 mt-0.5">
-                          Creado por {d.createdByName}
-                        </div>
-                      )}
-                      {d.updatedByName && d.updatedAt && d.createdAt &&
-                        (new Date(d.updatedAt).getTime() - new Date(d.createdAt).getTime() > 60_000) && (
-                        <div className="text-[9px] text-pv-gray/50">
-                          Act. {new Date(d.updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · {d.updatedByName}
-                        </div>
-                      )}
+        {/* Kanban view */}
+        {tableroView === 'kanban' && (
+          <div className="overflow-x-auto">
+            <div className="grid border-t border-white/[0.07] min-w-[540px]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+              {COL_CONFIG.map(col => (
+                <div key={col.key} className="border-r border-white/[0.06] last:border-r-0 flex flex-col min-h-[180px] min-w-[180px]">
+                  <div className={`px-3 py-2 flex items-center justify-between border-b border-white/[0.06] ${col.headCls}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-[0.6px] flex items-center gap-1.5 ${col.cls}`}>
+                      {col.label}
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${col.countCls}`}>
+                        {byStatus[col.key as keyof typeof byStatus].length}
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setColSorts(prev => ({ ...prev, [col.key]: nextSort(prev[col.key]) }))}
+                        title="Cambiar orden"
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded text-pv-accent bg-pv-accent/10 hover:bg-pv-accent/20 transition-colors"
+                      >
+                        {sortLabel(colSorts[col.key])}
+                      </button>
+                      <button
+                        onClick={() => openNewTask(col.key as 'ok' | 'warn' | 'danger')}
+                        className="text-[16px] leading-none text-pv-gray hover:text-white transition-colors"
+                        title="Agregar tarea en esta columna"
+                      >
+                        +
+                      </button>
                     </div>
-                  )
-                })}
-                {byStatus[col.key as keyof typeof byStatus].length === 0 && (
-                  <EmptyState compact title="Sin tareas" />
-                )}
-              </div>
+                  </div>
+                  <div className="p-2 flex flex-col gap-1.5 overflow-y-auto" style={{ maxHeight: '320px' }}>
+                    {getSorted(byStatus[col.key as keyof typeof byStatus], colSorts[col.key]).map(d => {
+                      const ownerName = d.ownerName ?? '—'
+                      const dateVal = toLocalDate(d.dueDate)
+                      const dateStr = dateVal
+                        ? dateVal.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+                        : '-'
+                      return (
+                        <div
+                          key={d.id}
+                          onClick={() => openEditTask(d)}
+                          title="Click para editar"
+                          className={`bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-2.5 cursor-pointer transition-all hover:bg-white/[0.07] hover:-translate-y-px hover:border-white/15 ${col.borderCls}`}
+                        >
+                          <div className="text-[11px] font-semibold mb-1 leading-snug">
+                            {d.name}
+                            {d.meta === 'minuta' && (
+                              <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ minuta</span>
+                            )}
+                            {d.meta === 'agente' && (
+                              <span className="ml-1 text-[8px] font-bold bg-pv-purple/20 text-[#B89EE8] px-1 py-0.5 rounded">✦ agente</span>
+                            )}
+                          </div>
+                          <div className="text-[9px] text-pv-gray flex items-center gap-1 flex-wrap">
+                            <span
+                              className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                              style={{ background: PRIORITY_COLORS[d.priority as keyof typeof PRIORITY_COLORS] ?? '#8A9BB0' }}
+                            />
+                            <span className="text-pv-gray">{ownerName}</span>
+                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ml-auto ${DATE_CLS[d.status]}`}>
+                              {dateStr}
+                            </span>
+                          </div>
+                          {d.createdByName && (
+                            <div className="text-[9px] text-pv-gray/60 mt-0.5">
+                              Creado por {d.createdByName}
+                            </div>
+                          )}
+                          {d.updatedByName && d.updatedAt && d.createdAt &&
+                            (new Date(d.updatedAt).getTime() - new Date(d.createdAt).getTime() > 60_000) && (
+                            <div className="text-[9px] text-pv-gray/50">
+                              Act. {new Date(d.updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · {d.updatedByName}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {byStatus[col.key as keyof typeof byStatus].length === 0 && (
+                      <EmptyState compact title="Sin tareas" />
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Packages panel */}
