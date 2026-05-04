@@ -5,6 +5,7 @@ import Link from 'next/link'
 import NewProjectButton from '@/components/dashboard/NewProjectButton'
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 import DailySummaryBanner from '@/components/dashboard/DailySummaryBanner'
+import PortfolioInsights from '@/components/dashboard/PortfolioInsights'
 import { toLocalDate } from '@/lib/dates'
 import { getCached, setCached } from '@/lib/client-cache'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -233,6 +234,8 @@ export default function DashboardInicio() {
 
       {/* Daily AI morning brief — fetched/generated client-side to respect user timezone */}
       <DailySummaryBanner />
+
+      <PortfolioInsights />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { AgentCardType } from '@/lib/types'
-import { VIEW_FOCUS } from '@/lib/agent-prompts'
+import { VIEW_FOCUS, ALLOWED_VIEWS, type AgentViewKey } from '@/lib/agent-prompts'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -145,6 +145,25 @@ EQUIPO (${project.members.length} miembros):
 ${memberLines || '(sin miembros asignados)'}`
 }
 
+async function buildPortfolioContext(userId: string): Promise<string> {
+  type Row = { title: string; status: string; deliverables: { dueDate: Date | null }[]; _count: { deliverables: number } }
+  const projects = await prisma.project.findMany({
+    where: { members: { some: { userId } } },
+    include: {
+      deliverables: { where: { status: { not: 'completado' } }, take: 5, orderBy: { dueDate: 'asc' } },
+      _count: { select: { deliverables: true } },
+    },
+    take: 10,
+    orderBy: { updatedAt: 'desc' },
+  }) as unknown as Row[]
+
+  const lines = projects.map((p) => {
+    const overdue = p.deliverables.filter(d => d.dueDate && new Date(d.dueDate) < new Date()).length
+    return `- ${p.title} | estado: ${p.status} | vencidos: ${overdue}/${p._count.deliverables}`
+  })
+  return `Portafolio (${projects.length} proyectos):\n${lines.join('\n')}`
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -152,20 +171,24 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { projectId, message, type, view } = body as {
-    projectId: string
+  const { projectId, message, type, view: rawView } = body as {
+    projectId?: string
     message: string
     type?: string
     view?: string
   }
 
-  if (!projectId || !message) {
-    return NextResponse.json({ error: 'projectId and message are required' }, { status: 400 })
-  }
+  const view: AgentViewKey = (rawView && ALLOWED_VIEWS.has(rawView as AgentViewKey))
+    ? (rawView as AgentViewKey)
+    : 'default'
 
-  // S2: Server-side input length limit
-  if (message.length > 6000) {
-    return NextResponse.json({ error: 'La minuta excede 6000 caracteres. Por favor trunca el texto antes de enviarlo.' }, { status: 400 })
+  console.log(`[agent] view=${view} projectId=${projectId ?? 'portfolio'}`)
+
+  if (!message || message.length > 6000) {
+    return NextResponse.json({ error: 'Mensaje inválido' }, { status: 400 })
+  }
+  if (!projectId && view !== 'inicio') {
+    return NextResponse.json({ error: 'projectId requerido' }, { status: 400 })
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -183,14 +206,10 @@ export async function POST(req: NextRequest) {
   // Rate limit: 5 messages per minute per user (across all their projects)
   const oneMinuteAgo = new Date(Date.now() - 60_000)
   const orgIds = memberships.map(m => m.organizationId)
-  const userProjectIds = await prisma.project.findMany({
-    where: { organizationId: { in: orgIds } },
-    select: { id: true },
-  }).then(ps => ps.map(p => p.id))
 
   const recentCount = await prisma.agentMessage.count({
     where: {
-      projectId: { in: userProjectIds },
+      userId: session.user.id,
       role: 'user',
       createdAt: { gte: oneMinuteAgo },
     },
@@ -213,38 +232,45 @@ export async function POST(req: NextRequest) {
 
   // Verify access to the specific project (guests only see assigned projects)
   const guestOrgIds = memberships.filter(m => m.role === 'guest').map(m => m.organizationId)
-  const project = await prisma.project.findFirst({
-    where: {
-      id: projectId,
-      organizationId: { in: orgIds },
-    },
-    select: {
-      title: true,
-      type: true,
-      status: true,
-      organizationId: true,
-      nextPaymentAmount: true,
-      nextPaymentStatus: true,
-      deliverables: {
-        select: { id: true, name: true, status: true, priority: true, ownerName: true, dueDate: true },
-        orderBy: { position: 'asc' },
-      },
-      members: {
-        select: { name: true, role: true },
-      },
-    },
-  })
 
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
+  // For portfolio view, skip project fetch
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let project: any = null
 
-  // For guest users, verify they are a ProjectMember of this specific project
-  if (guestOrgIds.includes(project.organizationId)) {
-    const isMember = await prisma.projectMember.findFirst({
-      where: { projectId, userId: session.user.id },
+  if (view !== 'inicio') {
+    project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        organizationId: { in: orgIds },
+      },
+      select: {
+        title: true,
+        type: true,
+        status: true,
+        organizationId: true,
+        nextPaymentAmount: true,
+        nextPaymentStatus: true,
+        deliverables: {
+          select: { id: true, name: true, status: true, priority: true, ownerName: true, dueDate: true },
+          orderBy: { position: 'asc' },
+        },
+        members: {
+          select: { name: true, role: true },
+        },
+      },
     })
-    if (!isMember) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // For guest users, verify they are a ProjectMember of this specific project
+    if (guestOrgIds.includes(project.organizationId!)) {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: projectId!, userId: session.user.id },
+      })
+      if (!isMember) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
   }
 
   const isMinuta = type === 'minuta'
@@ -254,13 +280,15 @@ export async function POST(req: NextRequest) {
   if (isMinuta) {
     const today = new Date().toISOString().split('T')[0]
 
-    const deliverableLines = project.deliverables.map(d => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deliverableLines = (project!.deliverables as any[]).map((d: any) => {
       const statusLabel = d.status === 'ok' ? 'ok' : d.status === 'warn' ? 'warn' : 'danger'
-      const due = d.dueDate ? d.dueDate.toISOString().split('T')[0] : 'sin fecha'
-      return `${(d as { id: string } & typeof d).id} | ${escapeForPrompt(d.name)} | ${statusLabel} | ${d.priority} | ${d.ownerName ? escapeForPrompt(d.ownerName) : 'sin asignar'} | ${due}`
+      const due = d.dueDate ? new Date(d.dueDate).toISOString().split('T')[0] : 'sin fecha'
+      return `${d.id} | ${escapeForPrompt(d.name)} | ${statusLabel} | ${d.priority} | ${d.ownerName ? escapeForPrompt(d.ownerName) : 'sin asignar'} | ${due}`
     }).join('\n')
 
-    const memberLines = project.members.map((m: { name: string; role: string }) => escapeForPrompt(m.name)).join(', ')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const memberLines = (project!.members as any[]).map((m: any) => escapeForPrompt(m.name)).join(', ')
 
     const minutaSystemPrompt = `Eres un asistente de gestión de proyectos. Analiza la minuta y genera un plan de acciones sobre entregables. Responde únicamente con JSON válido.`
 
@@ -348,7 +376,7 @@ Reglas estrictas:
         }).join('\n')
       : '(sin KPIs registrados)'
 
-    const reportePrompt = `${buildProjectContext(project)}
+    const reportePrompt = `${buildProjectContext(project!)}
 
 RIESGOS REGISTRADOS:
 ${riskLines}
@@ -399,10 +427,17 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
   }
 
   try {
-    const focusLine = view ? (VIEW_FOCUS[view] ?? VIEW_FOCUS.default) : ''
-    const userContent = focusLine
-      ? `[Vista actual: ${focusLine}]\n\n${buildProjectContext(project)}\n\nPregunta/instrucción: ${message}`
-      : `${buildProjectContext(project)}\n\nPregunta/instrucción: ${message}`
+    let userContent: string
+    if (view === 'inicio') {
+      const portfolioCtx = await buildPortfolioContext(session.user.id)
+      const focusLine = VIEW_FOCUS['inicio']
+      userContent = `[Vista: Portafolio]\n${focusLine}\n\n${portfolioCtx}\n\nPregunta/instrucción: ${message}`
+    } else {
+      const focusLine = view ? (VIEW_FOCUS[view] ?? VIEW_FOCUS['default']) : ''
+      userContent = focusLine
+        ? `[Vista actual: ${focusLine}]\n\n${buildProjectContext(project!)}\n\nPregunta/instrucción: ${message}`
+        : `${buildProjectContext(project!)}\n\nPregunta/instrucción: ${message}`
+    }
 
     const response = await client.messages.create({
       model,
@@ -433,8 +468,8 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     const db = prisma as any
     await db.agentMessage.createMany({
       data: [
-        { projectId, userId: session.user.id, role: 'user', content: message },
-        { projectId, userId: session.user.id, role: 'agent', content: cleanHtml, cardType, reasoning },
+        { projectId: projectId ?? null, userId: session.user.id, role: 'user', content: message, scope: view === 'inicio' ? 'portfolio' : null },
+        { projectId: projectId ?? null, userId: session.user.id, role: 'agent', content: cleanHtml, cardType, reasoning, scope: view === 'inicio' ? 'portfolio' : null },
       ],
     }).catch(() => {}) // non-blocking — don't fail the response if DB write fails
 

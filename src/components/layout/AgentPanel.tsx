@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useAgentContext } from '@/lib/context/AgentContext'
 import { useAgent } from '@/lib/hooks/useAgent'
 import AgentMessages from '@/components/agent/AgentMessages'
@@ -11,7 +11,7 @@ import AgentChatModal from '@/components/agent/AgentChatModal'
 import { useState, useEffect, useRef } from 'react'
 import DBMinutaModal from '@/components/dashboard/DBMinutaModal'
 import AgentHistoryDrawer from '@/components/agent/AgentHistoryDrawer'
-import { getContextualChips } from '@/lib/agent-prompts'
+import { getContextualChips, type AgentViewKey } from '@/lib/agent-prompts'
 import {
   useAutoRefresh,
   loadAutoRefreshConfig,
@@ -29,6 +29,7 @@ type AgentMode = 'solo_cuando_lo_pida' | 'equilibrado' | 'proactivo'
 export default function AgentPanel() {
   const params = useParams()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const projectId = (params?.projectId as string) ?? 'pedregal'
   const {
     cards,
@@ -136,14 +137,22 @@ export default function AgentPanel() {
 
   const contextChips = getContextualChips(pathname ?? '')
 
-  function resolveView(path: string): string {
-    if (path.includes('/tablero')) return 'kanban'
-    if (path.includes('/cronograma')) return 'cronograma'
-    if (path.includes('/riesgos')) return 'riesgos'
-    if (path.includes('/analisis')) return 'analisis'
+  function resolveView(pathname: string, searchParams: URLSearchParams): AgentViewKey {
+    if (pathname === '/dashboard/inicio') return 'inicio'
+    if (pathname.startsWith('/dashboard/') && pathname.split('/').length === 3) {
+      const tab = searchParams.get('tab') ?? 'tablero'
+      const view = searchParams.get('view')
+      if (tab === 'analisis') return 'analisis'
+      if (tab === 'riesgos')  return 'riesgos'
+      if (tab === 'minutas')  return 'minutas'
+      if (tab === 'tablero') {
+        if (view === 'kanban') return 'kanban'
+        return 'cronograma'
+      }
+    }
     return 'default'
   }
-  const currentView = resolveView(pathname ?? '')
+  const currentView = resolveView(pathname ?? '', searchParams ?? new URLSearchParams())
 
   const panelContent = (
     <>

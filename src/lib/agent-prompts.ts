@@ -120,11 +120,13 @@ export const AGENT_PROMPTS: AgentPrompt[] = [
 ]
 
 const CONTEXT_MAP: Record<string, AgentPromptType[]> = {
-  riesgos:  ['sugerir_riesgos', 'bloqueados', 'riesgos', 'prediccion', 'velocidad'],
-  minutas:  ['resumen_ejecutivo', 'avance', 'siguiente_entrega', 'tiempo'],
-  analisis: ['resumen_ejecutivo', 'reporte_semanal', 'avance', 'velocidad', 'prediccion'],
-  tablero:  ['velocidad', 'prediccion', 'avance', 'bloqueados', 'tiempo'],
-  inicio:   ['bloqueados', 'resumen_ejecutivo', 'balancear_carga', 'prediccion'],
+  riesgos:    ['sugerir_riesgos', 'bloqueados', 'riesgos', 'prediccion', 'velocidad'],
+  minutas:    ['resumen_ejecutivo', 'avance', 'siguiente_entrega', 'tiempo'],
+  analisis:   ['resumen_ejecutivo', 'reporte_semanal', 'avance', 'velocidad', 'prediccion'],
+  tablero:    ['velocidad', 'prediccion', 'avance', 'bloqueados', 'tiempo'],
+  cronograma: ['velocidad', 'prediccion', 'avance', 'bloqueados', 'tiempo'],
+  kanban:     ['bloqueados', 'velocidad', 'avance', 'balancear_carga', 'prediccion'],
+  inicio:     ['bloqueados', 'resumen_ejecutivo', 'balancear_carga', 'prediccion'],
 }
 
 export function getContextualChips(pathname: string): AgentPrompt[] {
@@ -156,8 +158,16 @@ export interface MinutaPlan {
 
 export const VIEW_FOCUS: Record<string, string> = {
   cronograma: 'Enfoca el análisis en fechas, delays y riesgos de cronograma. Identifica los entregables con mayor probabilidad de no cumplirse.',
-  kanban: 'Enfoca el análisis en la carga del equipo, bloqueos activos y distribución de trabajo entre miembros.',
-  riesgos: 'Enfoca el análisis en estrategias de mitigación concretas para los elementos en estado danger o warn.',
-  analisis: 'Enfoca el análisis en métricas de avance, predicciones y tendencias del proyecto.',
-  default: 'Analiza el estado general del proyecto y prioriza las acciones de mayor impacto.',
+  kanban:     'Enfoca el análisis en la carga del equipo, bloqueos activos y distribución de trabajo entre miembros.',
+  riesgos:    'Enfoca el análisis en estrategias de mitigación concretas para los elementos en estado danger o warn.',
+  analisis:   'Enfoca el análisis en métricas de avance, predicciones y tendencias del proyecto.',
+  minutas:    'Enfoca el análisis en los acuerdos de reuniones recientes, pendientes y seguimiento de compromisos.',
+  inicio:     'Analiza el estado del portafolio completo: proyectos críticos, capacidad del equipo y prioridades globales.',
+  default:    'Analiza el estado general del proyecto y prioriza las acciones de mayor impacto.',
 }
+
+export const ALLOWED_VIEWS = new Set([
+  'cronograma', 'kanban', 'riesgos', 'analisis', 'minutas', 'inicio', 'default',
+] as const)
+
+export type AgentViewKey = 'cronograma' | 'kanban' | 'riesgos' | 'analisis' | 'minutas' | 'inicio' | 'default'
