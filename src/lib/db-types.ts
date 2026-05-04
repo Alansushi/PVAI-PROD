@@ -211,6 +211,7 @@ export interface DBAgentMessage {
   undone: boolean
   beforeState: unknown | null
   reasoning: string | null
+  scope: string | null
   createdAt: Date
 }
 
