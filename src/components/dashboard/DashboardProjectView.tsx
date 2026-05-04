@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import type { DBProjectWithRelations, DBDeliverable, DBProjectMember, DBAuditLogEntry, DBDeliverablePackage, DBProjectRisk, DBProjectKPI, DBVelocityWeek } from '@/lib/db-types'
 import { PRIORITY_COLORS, GANTT_THRESHOLD } from '@/lib/constants'
 import { toLocalDate } from '@/lib/dates'
@@ -106,6 +107,8 @@ function timeAgo(date: Date): string {
 
 export default function DashboardProjectView({ project: projectProp }: Props) {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const currentUser = session?.user?.id && session?.user?.name
     ? { id: session.user.id, name: session.user.name }
     : undefined
@@ -143,21 +146,34 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [velocityRequired, setVelocityRequired] = useState(0)
   const [velocityLoading, setVelocityLoading] = useState(true)
   const [editProjectOpen, setEditProjectOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'tablero' | 'analisis' | 'riesgos' | 'minutas'>('tablero')
+  const VALID_TABS = ['tablero', 'analisis', 'riesgos', 'minutas'] as const
+  type TabKey = typeof VALID_TABS[number]
+  const rawTab = searchParams.get('tab')
+  const activeTab: TabKey = (VALID_TABS.includes(rawTab as TabKey) ? rawTab : 'tablero') as TabKey
+
+  function setActiveTab(tab: TabKey) {
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('tab', tab)
+    router.replace(`?${next.toString()}`, { scroll: false })
+  }
+
   const [moreOpen, setMoreOpen] = useState(false)
 
   type TableroView = 'lista' | 'gantt' | 'kanban'
-  const [tableroView, setTableroView] = useState<TableroView>(() => {
+  const VALID_VIEWS: TableroView[] = ['lista', 'gantt', 'kanban']
+
+  function getDefaultView(): TableroView {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(`pvai_project_${projectProp.id}_view`)
       if (stored === 'lista' || stored === 'gantt' || stored === 'kanban') return stored
     }
     const withDates = projectProp.deliverables.filter(d => d.startDate && d.dueDate)
-    const estimated = projectProp.ganttRows.length > 0
-      ? projectProp.ganttRows.length
-      : withDates.length
+    const estimated = projectProp.ganttRows.length > 0 ? projectProp.ganttRows.length : withDates.length
     return estimated >= GANTT_THRESHOLD ? 'gantt' : 'lista'
-  })
+  }
+
+  const rawView = searchParams.get('view')
+  const tableroView: TableroView = (VALID_VIEWS.includes(rawView as TableroView) ? rawView : getDefaultView()) as TableroView
 
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
@@ -349,11 +365,11 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     ).filter(m => m.offset >= 0 && m.offset <= ganttTotalDays)
   }, [packages, baseDate, ganttTotalDays, ganttRows.length])
 
-  function changeTableroView(view: TableroView) {
-    setTableroView(view)
-    try {
-      localStorage.setItem(`pvai_project_${project.id}_view`, view)
-    } catch {}
+  function changeTableroView(v: TableroView) {
+    localStorage.setItem(`pvai_project_${projectProp.id}_view`, v)
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('view', v)
+    router.replace(`?${next.toString()}`, { scroll: false })
   }
 
   function openNewTask(status: 'ok' | 'warn' | 'danger' = 'warn') {
