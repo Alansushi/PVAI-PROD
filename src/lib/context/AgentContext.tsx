@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import type { AgentCard, AgentCardType, AgentCardAction } from '@/lib/types'
+import { ensureCardActions } from '@/lib/agent-helpers'
 
 interface AgentContextValue {
   cards: AgentCard[]
@@ -54,7 +55,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     cardType: AgentCardType = 'insight',
     reasoning?: string | null
   ) => {
-    setCards(prev => [...prev, {
+    setCards(prev => [...prev, ensureCardActions({
       id: `c${Date.now()}${Math.random()}`,
       role,
       html,
@@ -62,7 +63,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       cardType,
       reasoning,
       dismissed: false,
-    }])
+    })])
   }, [])
 
   const dismissCard = useCallback((id: string) => {
@@ -102,7 +103,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     executed?: boolean
     undone?: boolean
   }>) => {
-    setCards(msgs.map(m => ({
+    setCards(msgs.map(m => ensureCardActions({
       id: m.id,
       role: m.role as 'agent' | 'user',
       html: m.content,
