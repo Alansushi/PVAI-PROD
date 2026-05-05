@@ -19,6 +19,7 @@ import {
   AUTO_REFRESH_OPTIONS,
   type AutoRefreshInterval,
 } from '@/lib/hooks/useAutoRefresh'
+import { useStaleDetection } from '@/lib/hooks/useStaleDetection'
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, '').trim().slice(0, 40)
@@ -42,6 +43,7 @@ export default function AgentPanel() {
     lastRefreshed,
     setLastRefreshed,
     agentStatus,
+    setAgentStatus,
   } = useAgentContext()
   const { askAgent, sendFree, refreshHistory } = useAgent(projectId)
   const [minutaOpen, setMinutaOpen] = useState(false)
@@ -85,6 +87,7 @@ export default function AgentPanel() {
 
   async function handleModeChange(mode: AgentMode) {
     setAgentMode(mode)
+    setAgentStatus('idle')    // clear stale banner when user changes mode
     if (mode === 'solo_cuando_lo_pida') {
       setArEnabled(false)
       saveAutoRefreshConfig(false, arInterval)
@@ -100,9 +103,15 @@ export default function AgentPanel() {
     }).catch(() => {})
   }
 
-  const doRefresh = () => { refreshHistory(); setLastRefreshed(new Date()) }
+  const doRefresh = () => {
+    refreshHistory()
+    setLastRefreshed(new Date())
+    setAgentStatus('idle')
+  }
 
   useAutoRefresh(doRefresh, arEnabled && agentMode !== 'solo_cuando_lo_pida', arInterval)
+
+  useStaleDetection(lastRefreshed, agentMode, () => setAgentStatus('stale'))
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
