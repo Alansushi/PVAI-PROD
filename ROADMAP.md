@@ -256,6 +256,30 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 - Timestamps se actualizan en tiempo real cada 30s
 - Status "Pensando…" durante respuesta del agente
 
+### F6.2 — Cierre fino del agente (QA Audit) ✅
+**Branch:** `feat/ux-audit-2026`
+**Migración:** `20260505000000_dismiss_reason` — campos `dismissReason String?`, `dismissNote String?` en `AgentMessage`
+
+**Archivos nuevos:**
+- `src/lib/agent-helpers.ts` — `ensureCardActions()`: garantiza CTAs base por tipo de card (alerta/recomendacion/insight/pregunta)
+- `src/lib/hooks/useStaleDetection.ts` — stale automático con thresholds por modo (solo: 24h, equilibrado: 4h, proactivo: 30min)
+
+**Archivos modificados:**
+- `src/lib/types.ts` — `AgentCard` + `dismissReason?`, `dismissNote?`
+- `src/lib/context/AgentContext.tsx` — `ensureCardActions` en `initCards` y `addCard`; `dismissReason`/`dismissNote` mapeados
+- `src/lib/hooks/useAgent.ts` — `dismissCardServer(id, reason?, note?)`
+- `src/components/agent/AgentCard.tsx` — popover de descarte con 4 chips + textarea + confirm; outside-click/Escape close
+- `src/components/agent/AgentMessages.tsx` — historial de descartadas colapsable
+- `src/components/layout/AgentPanel.tsx` — avatar "AI" gradiente en modo colapsado; alerta preview 24 chars; `useStaleDetection` + reset en modo change
+- `src/app/api/projects/[id]/agent-messages/route.ts` — PATCH guarda `dismissReason`/`dismissNote`; GET los expone
+
+**Criterios de verificación:**
+- Cards sin actions de IA muestran 2-3 botones default
+- ✕ → popover de razón → confirm → razón guardada en DB + visible en historial descartadas
+- Modo proactivo: banner stale ámbar tras 30 min de inactividad; refresh lo resetea
+- Panel colapsado: avatar AI + badge de alertas + preview texto o dot verde
+- Undo: update/create/reassign → revert → estado original restaurado (server-side implementado)
+
 ---
 
 ## Tabla de prioridades
