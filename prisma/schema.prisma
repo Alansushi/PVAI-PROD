@@ -219,8 +219,10 @@ model AgentMessage {
   content     String
   cardType    String?
   actions     Json?
-  dismissed   Boolean  @default(false)
-  executed    Boolean  @default(false)
+  dismissed     Boolean  @default(false)
+  dismissReason String?
+  dismissNote   String?
+  executed      Boolean  @default(false)
   undone      Boolean  @default(false)
   beforeState Json?
   reasoning   String?

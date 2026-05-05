@@ -26,6 +26,8 @@ interface AgentContextValue {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    dismissReason?: string | null
+    dismissNote?: string | null
     executed?: boolean
     undone?: boolean
   }>) => void
@@ -100,6 +102,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    dismissReason?: string | null
+    dismissNote?: string | null
     executed?: boolean
     undone?: boolean
   }>) => {
@@ -111,6 +115,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       cardType: (m.cardType as AgentCardType) ?? 'insight',
       actions: Array.isArray(m.actions) ? (m.actions as AgentCardAction[]) : undefined,
       dismissed: m.dismissed ?? false,
+      dismissReason: m.dismissReason ?? undefined,
+      dismissNote: (m as { dismissNote?: string | null }).dismissNote ?? undefined,
       isDbCard: true,
       undone: m.undone ?? false,
     })))

@@ -40,6 +40,7 @@ export async function GET(
       id: true, role: true, content: true, createdAt: true,
       cardType: true, dismissed: true, actions: true,
       executed: true, undone: true,
+      dismissReason: true, dismissNote: true,
     },
   })
 
@@ -58,7 +59,7 @@ export async function PATCH(
   }
 
   type PatchBody =
-    | { messageId: string; dismissed: true }
+    | { messageId: string; dismissed: true; dismissReason?: string; dismissNote?: string }
     | { messageId: string; executed: true; beforeState: unknown }
     | { messageId: string; action: 'undo' }
 
@@ -68,9 +69,14 @@ export async function PATCH(
 
   // --- dismiss ---
   if ('dismissed' in body) {
+    const dismissBody = body as { messageId: string; dismissed: true; dismissReason?: string; dismissNote?: string }
     await db.agentMessage.updateMany({
       where: { id: messageId, projectId },
-      data: { dismissed: true },
+      data: {
+        dismissed: true,
+        dismissReason: dismissBody.dismissReason ?? null,
+        dismissNote: dismissBody.dismissNote ?? null,
+      },
     })
     return NextResponse.json({ ok: true })
   }
