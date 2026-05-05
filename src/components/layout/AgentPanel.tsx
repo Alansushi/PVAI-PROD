@@ -21,8 +21,8 @@ import {
 } from '@/lib/hooks/useAutoRefresh'
 import { useStaleDetection } from '@/lib/hooks/useStaleDetection'
 
-function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, '').trim().slice(0, 40)
+function stripHtml(html: string, maxLen = 40) {
+  return html.replace(/<[^>]*>/g, '').trim().slice(0, maxLen)
 }
 
 type AgentMode = 'solo_cuando_lo_pida' | 'equilibrado' | 'proactivo'
@@ -323,25 +323,38 @@ export default function AgentPanel() {
         style={{ ...panelStyle, position: 'fixed', right: 0, top: 68, bottom: 49, width: collapsed ? 64 : 295 }}
       >
         {collapsed ? (
-          <div className="flex flex-col items-center pt-4 gap-3">
-            {/* Expand button */}
-            <button
-              onClick={() => setCollapsed(false)}
-              className="text-pv-accent hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
-              title="Expandir"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z" />
-              </svg>
-            </button>
-            {/* Alert count badge */}
-            {alertCount > 0 && (
-              <div
-                className="w-5 h-5 rounded-full bg-pv-red flex items-center justify-center text-[9px] font-bold text-white cursor-default"
-                title={alertTooltip || 'Alertas activas'}
+          <div className="flex flex-col items-center pt-4 gap-2">
+            {/* AI avatar — clickable to expand */}
+            <div className="relative">
+              <button
+                onClick={() => setCollapsed(false)}
+                className="w-9 h-9 rounded-full flex items-center justify-center focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none"
+                style={{ background: 'linear-gradient(135deg, #2E8FC0 0%, #1a5f85 100%)' }}
+                title="Expandir agente IA"
+                aria-label="Expandir"
               >
-                {alertCount}
+                <span className="text-[11px] font-bold text-white select-none">AI</span>
+              </button>
+              {alertCount > 0 && (
+                <div
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pv-red flex items-center justify-center text-[8px] font-bold text-white pointer-events-none"
+                  aria-label={alertTooltip || 'Alertas activas'}
+                >
+                  {alertCount > 9 ? '9+' : alertCount}
+                </div>
+              )}
+            </div>
+            {/* Alert preview or OK indicator */}
+            {latestAlert ? (
+              <div
+                className="w-10 text-center text-[8px] text-pv-red leading-tight overflow-hidden line-clamp-2"
+                title={stripHtml(latestAlert.html, 120)}
+                aria-label="Alerta activa"
+              >
+                {stripHtml(latestAlert.html, 24)}…
               </div>
+            ) : (
+              <div className="w-2 h-2 rounded-full bg-pv-green" title="Sin alertas activas" />
             )}
           </div>
         ) : panelContent}
