@@ -201,12 +201,12 @@ export function useAgent(projectId: string) {
     }
   }, [projectId, updateCardUndone])
 
-  const dismissCardServer = useCallback(async (cardId: string) => {
+  const dismissCardServer = useCallback(async (cardId: string, reason?: string, note?: string) => {
     dismissCard(cardId)
     fetch(`/api/projects/${projectId}/agent-messages`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageId: cardId, dismissed: true }),
+      body: JSON.stringify({ messageId: cardId, dismissed: true, dismissReason: reason, dismissNote: note }),
     }).catch(() => {})
   }, [projectId, dismissCard])
 

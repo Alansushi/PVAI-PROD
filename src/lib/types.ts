@@ -110,6 +110,8 @@ export interface AgentCard {
   timestamp: Date
   actions?: AgentCardAction[]
   dismissed?: boolean
+  dismissReason?: string | null
+  dismissNote?: string | null
   isDbCard?: boolean
   undone?: boolean
   reasoning?: string | null

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import type { AgentCard, AgentCardType, AgentCardAction } from '@/lib/types'
+import { ensureCardActions } from '@/lib/agent-helpers'
 
 interface AgentContextValue {
   cards: AgentCard[]
@@ -25,6 +26,8 @@ interface AgentContextValue {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    dismissReason?: string | null
+    dismissNote?: string | null
     executed?: boolean
     undone?: boolean
   }>) => void
@@ -54,7 +57,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     cardType: AgentCardType = 'insight',
     reasoning?: string | null
   ) => {
-    setCards(prev => [...prev, {
+    setCards(prev => [...prev, ensureCardActions({
       id: `c${Date.now()}${Math.random()}`,
       role,
       html,
@@ -62,7 +65,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       cardType,
       reasoning,
       dismissed: false,
-    }])
+    })])
   }, [])
 
   const dismissCard = useCallback((id: string) => {
@@ -99,10 +102,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     cardType?: string | null
     actions?: unknown
     dismissed?: boolean
+    dismissReason?: string | null
+    dismissNote?: string | null
     executed?: boolean
     undone?: boolean
   }>) => {
-    setCards(msgs.map(m => ({
+    setCards(msgs.map(m => ensureCardActions({
       id: m.id,
       role: m.role as 'agent' | 'user',
       html: m.content,
@@ -110,6 +115,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       cardType: (m.cardType as AgentCardType) ?? 'insight',
       actions: Array.isArray(m.actions) ? (m.actions as AgentCardAction[]) : undefined,
       dismissed: m.dismissed ?? false,
+      dismissReason: m.dismissReason ?? undefined,
+      dismissNote: (m as { dismissNote?: string | null }).dismissNote ?? undefined,
       isDbCard: true,
       undone: m.undone ?? false,
     })))

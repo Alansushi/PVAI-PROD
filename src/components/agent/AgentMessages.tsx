@@ -27,6 +27,7 @@ export default function AgentMessages() {
   }, [cards])
 
   const visible = cards.filter(c => !c.dismissed)
+  const dismissed = cards.filter(c => c.dismissed)
 
   return (
     <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -43,6 +44,21 @@ export default function AgentMessages() {
         />
       ))}
       <div ref={bottomRef} />
+      {dismissed.length > 0 && (
+        <details className="mt-2">
+          <summary className="text-[10px] text-pv-gray/50 cursor-pointer select-none hover:text-pv-gray transition-colors">
+            {dismissed.length} descartadas
+          </summary>
+          <div className="mt-1.5 flex flex-col gap-1.5 opacity-50">
+            {dismissed.map(card => (
+              <div key={card.id} className="text-[10px] text-pv-gray px-2 py-1 border border-white/[0.04] rounded">
+                <span className="capitalize">{card.cardType}</span>
+                {card.dismissReason && <span className="ml-1 text-pv-gray/60">· {card.dismissReason}</span>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
       <DryRunModal
         open={!!dryRunState}
         action={dryRunState?.action ?? null}
