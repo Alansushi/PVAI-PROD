@@ -171,11 +171,12 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { projectId, message, type, view: rawView } = body as {
+  const { projectId, message, type, view: rawView, idempotencyKey } = body as {
     projectId?: string
     message: string
     type?: string
     view?: string
+    idempotencyKey?: string
   }
 
   const view: AgentViewKey = (rawView && ALLOWED_VIEWS.has(rawView as AgentViewKey))
@@ -193,6 +194,23 @@ export async function POST(req: NextRequest) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ html: '<strong>⚠ Agente no configurado:</strong> Añade <span class="warn">ANTHROPIC_API_KEY</span> a tu archivo .env.local para activar el agente IA.' })
+  }
+
+  // Idempotency check: if same requestId was already answered within 10 min, return cached response
+  if (idempotencyKey) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = prisma as any
+    const existing = await db.agentMessage.findFirst({
+      where: {
+        idempotencyKey,
+        role: 'agent',
+        createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+      select: { content: true, cardType: true, reasoning: true },
+    }).catch(() => null)
+    if (existing) {
+      return NextResponse.json({ html: existing.content, cardType: existing.cardType, reasoning: existing.reasoning })
+    }
   }
 
   // Verify user has access (get all memberships for multi-org support)
@@ -490,7 +508,7 @@ Usa las clases HTML del sistema (ok, warn, danger, nl) para resaltar informació
     await db.agentMessage.createMany({
       data: [
         { projectId: projectId ?? null, userId: session.user.id, role: 'user', content: message, scope: view === 'inicio' ? 'portfolio' : null },
-        { projectId: projectId ?? null, userId: session.user.id, role: 'agent', content: cleanHtml, cardType, reasoning, scope: view === 'inicio' ? 'portfolio' : null },
+        { projectId: projectId ?? null, userId: session.user.id, role: 'agent', content: cleanHtml, cardType, reasoning, scope: view === 'inicio' ? 'portfolio' : null, idempotencyKey: idempotencyKey ?? null },
       ],
     }).catch(() => {}) // non-blocking — don't fail the response if DB write fails
 

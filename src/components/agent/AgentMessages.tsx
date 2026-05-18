@@ -14,8 +14,9 @@ interface DryRunState {
 }
 
 export default function AgentMessages() {
-  const { cards } = useAgentContext()
+  const { cards, highlightCardId, setHighlightCardId } = useAgentContext()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [dryRunState, setDryRunState] = useState<DryRunState | null>(null)
 
   const params = useParams()
@@ -26,21 +27,36 @@ export default function AgentMessages() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [cards])
 
+  // Scroll to a previously answered chip card and flash it
+  useEffect(() => {
+    if (!highlightCardId || !containerRef.current) return
+    const el = containerRef.current.querySelector(`[data-card-id="${highlightCardId}"]`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('card-highlight')
+    const t = setTimeout(() => {
+      el.classList.remove('card-highlight')
+      setHighlightCardId(null)
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [highlightCardId, setHighlightCardId])
+
   const visible = cards.filter(c => !c.dismissed)
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+    <div ref={containerRef} className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
       {visible.map(card => (
-        <AgentCard
-          key={card.id}
-          card={card}
-          onDismiss={dismissCardServer}
-          onAction={(action) => setDryRunState({
-            action,
-            cardId: card.id,
-            isDbCard: !!card.isDbCard,
-          })}
-        />
+        <div key={card.id} data-card-id={card.id}>
+          <AgentCard
+            card={card}
+            onDismiss={dismissCardServer}
+            onAction={(action) => setDryRunState({
+              action,
+              cardId: card.id,
+              isDbCard: !!card.isDbCard,
+            })}
+          />
+        </div>
       ))}
       <div ref={bottomRef} />
       <DryRunModal

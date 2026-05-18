@@ -1,36 +1,86 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { useAgentContext } from '@/lib/context/AgentContext'
 import { AgentPrompt, MinutaPlan } from '@/lib/agent-prompts'
 import type { AgentCardAction } from '@/lib/types'
 
+const CHIP_CACHE_MS = 10 * 60 * 1000 // 10 minutes
+
 export function useAgent(projectId: string) {
-  const { addCard, initCards, setTyping, setProcessing, dismissCard, updateCardUndone } = useAgentContext()
+  const {
+    addCard, removeCard, initCards, setTyping, isTyping,
+    setProcessing, dismissCard, updateCardUndone, setHighlightCardId,
+  } = useAgentContext()
+
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Cancel any in-flight request on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
 
   const askAgent = useCallback(async (agentPrompt: AgentPrompt, view?: string) => {
-    const prompt = agentPrompt.prompt
-    addCard(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
+    // localStorage guard: if same chip was answered within 10 min, scroll to it
+    const storageKey = `pv_chip_${agentPrompt.id}_${projectId}`
+    try {
+      const cached = localStorage.getItem(storageKey)
+      if (cached) {
+        const { timestamp, cardId } = JSON.parse(cached) as { timestamp: number; cardId: string }
+        if (Date.now() - timestamp < CHIP_CACHE_MS) {
+          setHighlightCardId(cardId)
+          return
+        }
+      }
+    } catch { /* invalid JSON — proceed normally */ }
+
+    // Hard lock: ignore clicks while a response is in flight
+    if (isTyping) return
+
+    const requestId = crypto.randomUUID()
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    const userCardId = addCard(`<strong>Tú:</strong> ${agentPrompt.label}`, 'user')
     setTyping(true)
+
     try {
       const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, message: prompt, type: agentPrompt.id, view }),
+        signal: abortRef.current.signal,
+        body: JSON.stringify({
+          projectId,
+          message: agentPrompt.prompt,
+          type: agentPrompt.id,
+          view,
+          idempotencyKey: requestId,
+        }),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      addCard(
+      const agentCardId = addCard(
         data.html ?? '<span class="warn">Sin respuesta del agente.</span>',
         'agent',
         data.cardType ?? 'insight',
         data.reasoning ?? null
       )
-    } catch {
-      addCard('<span class="danger">Error al conectar con el agente.</span>')
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({
+          requestId,
+          cardId: agentCardId,
+          timestamp: Date.now(),
+        }))
+      } catch { /* localStorage full — skip caching */ }
+    } catch (err: unknown) {
+      if (!(err instanceof Error) || err.name !== 'AbortError') {
+        removeCard(userCardId)
+        addCard('<span class="danger">Error al conectar con el agente.</span>')
+      }
     } finally {
       setTyping(false)
     }
-  }, [projectId, addCard, setTyping])
+  }, [projectId, addCard, removeCard, setTyping, isTyping, setHighlightCardId])
 
   const sendFree = useCallback(async (text: string, files: string[], view?: string) => {
     let msgHtml = `<strong>Tú:</strong> ${text || '(archivo adjunto)'}`
