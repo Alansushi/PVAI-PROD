@@ -228,6 +228,38 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ## FASE 6 — UX Copiloto IA ✅ COMPLETADA
 
+### F6.2 — Idempotencia de Quick Chips ✅
+**Branch:** `feat/chip-idempotency`
+**Migración:** `20260518000000_add_idempotency_key_agent_message` — campo `idempotencyKey TEXT UNIQUE` en `AgentMessage`
+
+**Problema resuelto:** Doble-click accidental en un chip enviaba 2 requests idénticos a Claude (doble consumo de tokens). El único freno existente era el rate limit del servidor (5/min), que llega *después* de procesar ambos.
+
+**Doble candado implementado:**
+1. **Cliente (localStorage):** Al hacer click en un chip, busca `pv_chip_{type}_{projectId}` en localStorage. Si la respuesta tiene < 10 min → scroll+highlight a la card existente, cero API call.
+2. **Servidor (idempotencyKey):** Cada request incluye un UUID generado con `crypto.randomUUID()`. El servidor busca en `AgentMessage` si ya existe un mensaje con ese key en los últimos 10 min → devuelve la respuesta cacheada sin llamar a Claude.
+
+**Mejoras adicionales:**
+- `isTyping` como lock duro: ningún chip se envía mientras hay un request en vuelo
+- `AbortController`: cancela el fetch en vuelo al desmontar el panel (navegación o colapso)
+- Error recovery: si el fetch falla, la card del usuario optimista se elimina; el chat queda limpio
+
+**Archivos modificados:**
+- `prisma/schema.prisma` — `idempotencyKey String? @unique` en `AgentMessage`
+- `src/lib/context/AgentContext.tsx` — `addCard` retorna ID; nuevo `removeCard`; nuevo `highlightCardId` state
+- `src/lib/hooks/useAgent.ts` — `askAgent` refactorizado con los 4 guards + `abortRef` cleanup
+- `src/components/agent/AgentMessages.tsx` — efecto scroll+highlight vía `highlightCardId`; `data-card-id` en cards
+- `src/app/api/agent/route.ts` — idempotency check antes de llamar a Claude; persiste `idempotencyKey`
+- `src/app/globals.css` — keyframe `cardFlash` + clase `.card-highlight`
+
+**Criterios de verificación:**
+- Doble-click en chip → 1 solo request en Network tab; segundo click hace scroll a card previa con flash azul
+- Mismo chip después de 10 min → nuevo request se envía normalmente
+- Chip diferente mientras hay request en vuelo → bloqueado por `isTyping`, no llega al servidor
+- API falla → card del usuario desaparece, chat queda limpio
+- Colapsar panel durante request → request cancelado, `isTyping` en false
+
+---
+
 ### F6.1 — Barra Agente IA Rediseñada ✅
 **Branch:** `feat/ux-audit-2026`
 **Migración:** `20260430000000_agent_card_typed` — campos `cardType`, `actions`, `dismissed` en `AgentMessage`

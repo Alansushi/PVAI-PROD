@@ -14,6 +14,16 @@
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 }
 
+@keyframes cardFlash {
+  0%   { background-color: rgba(46, 143, 192, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.card-highlight {
+  animation: cardFlash 1.5s ease-out forwards;
+  border-radius: 0.5rem;
+}
+
 @layer components {
   .msg-content strong { color: #E09B3D; }
   .msg-content .ok    { color: #2A9B6F; }

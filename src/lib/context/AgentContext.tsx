@@ -9,7 +9,8 @@ interface AgentContextValue {
   isProcessing: boolean
   processingText: string
   attachedFiles: string[]
-  addCard: (html: string, role?: 'agent' | 'user', cardType?: AgentCardType, reasoning?: string | null) => void
+  addCard: (html: string, role?: 'agent' | 'user', cardType?: AgentCardType, reasoning?: string | null) => string
+  removeCard: (id: string) => void
   dismissCard: (id: string) => void
   updateCardUndone: (id: string) => void
   setTyping: (v: boolean) => void
@@ -17,6 +18,8 @@ interface AgentContextValue {
   addFile: (name: string) => void
   removeFile: (i: number) => void
   clearFiles: () => void
+  highlightCardId: string | null
+  setHighlightCardId: (id: string | null) => void
   initCards: (msgs: Array<{
     id: string
     role: string
@@ -47,15 +50,17 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [agentStatus, setAgentStatusState] = useState<'idle' | 'thinking' | 'stale'>('idle')
+  const [highlightCardId, setHighlightCardId] = useState<string | null>(null)
 
   const addCard = useCallback((
     html: string,
     role: 'agent' | 'user' = 'agent',
     cardType: AgentCardType = 'insight',
     reasoning?: string | null
-  ) => {
+  ): string => {
+    const id = `c${Date.now()}${Math.random()}`
     setCards(prev => [...prev, {
-      id: `c${Date.now()}${Math.random()}`,
+      id,
       role,
       html,
       timestamp: new Date(),
@@ -63,6 +68,11 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       reasoning,
       dismissed: false,
     }])
+    return id
+  }, [])
+
+  const removeCard = useCallback((id: string) => {
+    setCards(prev => prev.filter(c => c.id !== id))
   }, [])
 
   const dismissCard = useCallback((id: string) => {
@@ -122,11 +132,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   return (
     <AgentContext.Provider value={{
       cards, isTyping, isProcessing, processingText, attachedFiles,
-      addCard, dismissCard, updateCardUndone, setTyping, setProcessing,
+      addCard, removeCard, dismissCard, updateCardUndone, setTyping, setProcessing,
       addFile, removeFile, clearFiles, initCards,
       collapsed, setCollapsed,
       lastRefreshed, setLastRefreshed,
       agentStatus, setAgentStatus,
+      highlightCardId, setHighlightCardId,
     }}>
       {children}
     </AgentContext.Provider>
