@@ -12,7 +12,7 @@ export const deliverableCreateSchema = z.object({
   status: z.enum(['ok', 'warn', 'danger']).optional(),
   priority: z.enum(['alta', 'media', 'baja']).optional(),
   meta: z.string().max(500).optional(),
-  notes: z.string().max(5000).optional(),
+  notes: z.string().max(5000).optional().nullable(),
   ownerId: z.string().max(255).optional().nullable(),
   ownerName: z.string().max(255).optional().nullable(),
   dueDate: z.string().optional().nullable(),
