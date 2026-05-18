@@ -65,6 +65,9 @@ export async function PUT(
   if (body.priority && !VALID_PRIORITY.includes(body.priority))
     return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
 
+  const isMarkingComplete = body.status === 'ok' && existing.status !== 'ok'
+  const autoDate = isMarkingComplete && !existing.dueDate && !body.dueDate ? new Date() : undefined
+
   const updated = await db.deliverable.update({
     where: { id: deliverableId },
     data: {
@@ -73,7 +76,7 @@ export async function PUT(
       meta: body.meta ?? undefined,
       ownerId: body.ownerId !== undefined ? (body.ownerId || null) : undefined,
       ownerName: body.ownerName ?? undefined,
-      dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+      dueDate: body.dueDate ? new Date(body.dueDate) : autoDate,
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       priority: body.priority ?? undefined,
       notes: body.notes ?? undefined,

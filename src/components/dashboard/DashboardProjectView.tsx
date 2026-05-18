@@ -177,6 +177,18 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const rawView = searchParams.get('view')
   const tableroView: TableroView = (VALID_VIEWS.includes(rawView as TableroView) ? rawView : getDefaultView()) as TableroView
 
+  const VALID_FILTERS = ['current', 'last', 'all'] as const
+  type DeliverableFilter = typeof VALID_FILTERS[number]
+  const rawFilter = searchParams.get('filter')
+  const deliverableFilter: DeliverableFilter =
+    (VALID_FILTERS.includes(rawFilter as DeliverableFilter) ? rawFilter : 'current') as DeliverableFilter
+
+  function changeDeliverableFilter(f: DeliverableFilter) {
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('filter', f)
+    router.replace(`?${next.toString()}`, { scroll: false })
+  }
+
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
     fetch(`/api/projects/${project.id}/activity`)
@@ -187,11 +199,11 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   }, [project.id])
 
   const fetchDeliverables = useCallback(() => {
-    fetch(`/api/projects/${project.id}/deliverables`)
+    fetch(`/api/projects/${project.id}/deliverables?filter=${deliverableFilter}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setDeliverables(data) })
       .catch(() => {})
-  }, [project.id])
+  }, [project.id, deliverableFilter])
 
   const fetchPackages = useCallback(() => {
     setPackagesLoading(true)
@@ -230,12 +242,13 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   }, [project.id])
 
   useEffect(() => {
+    fetchDeliverables()
     fetchActivity()
     fetchPackages()
     fetchRisks()
     fetchKPIs()
     fetchVelocity()
-  }, [fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
+  }, [fetchDeliverables, fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
 
   const done         = deliverables.filter(d => d.status === 'ok').length
   const total        = deliverables.length
@@ -736,6 +749,29 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
         <div className="px-4 py-2.5 border-b border-white/[0.07] flex justify-between items-center">
           <h3 className="text-xs font-semibold">Entregables</h3>
           <div className="flex items-center gap-2">
+            <div className="flex" role="group" aria-label="Filtro de completadas">
+              {([
+                { id: 'current', label: 'Mes actual' },
+                { id: 'last',    label: 'Mes pasado' },
+                { id: 'all',     label: 'Todos' },
+              ] as const).map((opt, i, arr) => (
+                <button
+                  key={opt.id}
+                  onClick={() => changeDeliverableFilter(opt.id)}
+                  className={[
+                    'px-2.5 py-1 text-[10px] font-semibold transition-colors border border-white/[0.08]',
+                    i === 0 ? 'rounded-l-lg' : '',
+                    i === arr.length - 1 ? 'rounded-r-lg' : '',
+                    i > 0 ? '-ml-px' : '',
+                    deliverableFilter === opt.id
+                      ? 'bg-pv-accent text-white z-10 relative'
+                      : 'bg-white/[0.06] text-pv-gray hover:text-white hover:bg-white/[0.10]',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <span className="text-[10px] text-pv-gray">{done}/{total} completados</span>
             <button
               onClick={() => openNewTask('warn')}

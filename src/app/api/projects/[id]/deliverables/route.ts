@@ -31,8 +31,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const project = await verifyProjectAccess(id, session.user.id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const rawFilter = _req.nextUrl.searchParams.get('filter')
+  const filter = (['current', 'last', 'all'] as const).includes(rawFilter as 'current' | 'last' | 'all')
+    ? (rawFilter as 'current' | 'last' | 'all')
+    : 'current'
+
+  const now = new Date()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = filter === 'all'
+    ? { projectId: id }
+    : (() => {
+        const [y, m] = filter === 'current'
+          ? [now.getUTCFullYear(), now.getUTCMonth()]
+          : [now.getUTCFullYear(), now.getUTCMonth() - 1]
+        const start = new Date(Date.UTC(y, m, 1))
+        const end   = new Date(Date.UTC(y, m + 1, 1))
+        return {
+          projectId: id,
+          OR: [
+            { status: { in: ['warn', 'danger'] } },
+            { status: 'ok', dueDate: { gte: start, lt: end } },
+            { status: 'ok', dueDate: null },
+          ],
+        }
+      })()
+
   const deliverables = await prisma.deliverable.findMany({
-    where: { projectId: id },
+    where,
     orderBy: { position: 'asc' },
   })
 
@@ -65,7 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       dueDate: dueDate ? new Date(dueDate) : null,
       startDate: startDate ? new Date(startDate) : null,
       priority: priority ?? 'media',
-      notes: notes ?? '',
+      notes: notes ?? null,
       position: position ?? 0,
       createdById: session.user.id,
       createdByName: session.user.name ?? null,
