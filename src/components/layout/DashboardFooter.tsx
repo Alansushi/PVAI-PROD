@@ -23,9 +23,19 @@ export default function DashboardFooter() {
         </Link>
       </div>
 
-      {/* Derecha: copyright */}
-      <div className="text-[10px] text-pv-gray/40">
-        © {new Date().getFullYear()} Proyecto Vivo · Todos los derechos reservados
+      {/* Derecha: copyright + Orkesta */}
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-[10px] text-pv-gray/40">
+          © {new Date().getFullYear()} Proyecto Vivo · Todos los derechos reservados
+        </span>
+        <a
+          href="https://orkestalo.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] text-pv-gray/40 hover:text-pv-accent transition-colors"
+        >
+          Hecho por el equipo de Orkesta
+        </a>
       </div>
     </footer>
   )
