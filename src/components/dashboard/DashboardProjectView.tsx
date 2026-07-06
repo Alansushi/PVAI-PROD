@@ -1177,6 +1177,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
       <MembersListModal
         open={membersListOpen}
         onClose={() => setMembersListOpen(false)}
+        projectId={project.id}
         members={members}
         onSelectMember={m => setProfileMember(m)}
         onInvite={() => setInviteOpen(true)}

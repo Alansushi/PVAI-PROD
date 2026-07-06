@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { linkPendingInvitations } from '@/lib/invitations'
 import { AgentProvider } from '@/lib/context/AgentContext'
 import { ProjectProvider } from '@/lib/context/ProjectContext'
 import { ToastProvider } from '@/lib/context/ToastContext'
@@ -11,6 +12,10 @@ import DashboardFooter from '@/components/layout/DashboardFooter'
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session?.user?.id) redirect('/login')
+
+  // Vincula invitaciones pendientes que coincidan con el email del usuario
+  // (cubre a usuarios que se registraron sin pasar por el link de invitación)
+  await linkPendingInvitations(session.user.id, session.user.email)
 
   const memberships = await prisma.orgMember.findMany({
     where: { userId: session.user.id },

@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
 import { sendInvitationEmail } from '@/lib/email'
+import { invitationStatusFor } from '@/lib/invitations'
 
 async function verifyProjectAccess(projectId: string, userId: string) {
   const memberships = await prisma.orgMember.findMany({ where: { userId } })
@@ -31,10 +32,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const members = await prisma.projectMember.findMany({
     where: { projectId: id },
-    include: { user: { select: { id: true, name: true, email: true, image: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true, image: true } },
+      invitation: { select: { acceptedAt: true, expiresAt: true } },
+    },
   })
 
-  return NextResponse.json(members)
+  return NextResponse.json(
+    members.map(({ invitation, ...m }) => ({
+      ...m,
+      invitationStatus: m.userId ? null : invitationStatusFor(invitation),
+    }))
+  )
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

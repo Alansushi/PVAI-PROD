@@ -163,6 +163,27 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## F-Invitations — Robustez del flujo de invitaciones ✅ COMPLETADA
+
+Origen: incidente real (2026-07-06) — usuario invitado a `rohernandez@proyeco.es` se registró
+con Google usando otro email; el `ProjectMember` quedó con `userId NULL`, sin `OrgMember`,
+con una org duplicada creada en onboarding, y sin ningún error visible. Segundo caso
+idéntico detectado (`mhernandez@proyeco.es`). Datos reparados manualmente vía SQL.
+
+- **Helper:** `src/lib/invitations.ts` — `maskEmail`, `invitationStatusFor`, `linkPendingInvitations`
+- **Auto-vinculación:** `src/app/dashboard/layout.tsx` acepta automáticamente invitaciones
+  pendientes (no expiradas) cuyo email coincide con el del usuario al entrar al dashboard
+- **Registro:** `/api/auth/register` responde `invitationStatus` (`linked | not_found | expired | email_mismatch`)
+  + `invitedEmailMasked`; `RegisterForm` muestra aviso explícito en vez de fallar en silencio
+- **Página de invitación:** `src/app/invitations/[token]/page.tsx` lee de Prisma directamente
+  (antes crasheaba: usaba `invitation.email` que el GET no devuelve), distingue expirada vs
+  usada, y muestra el email invitado enmascarado en todos los estados
+- **Miembros:** `GET /api/projects/[id]` y `GET .../members` incluyen `invitationStatus`
+  por miembro; `MembersListModal` muestra badge "Pendiente"/"Expirada" + botón Reenviar
+- **Nueva ruta:** `POST /api/projects/[id]/members/[memberId]/resend-invitation` — regenera
+  token, extiende expiración 7 días y reenvía el email
+- Sin cambios de schema (no requiere migración)
+
 ---
 
 ## F-Legal — Cumplimiento Legal LFPDPPP + Términos ✅ COMPLETADA

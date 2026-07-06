@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
+import { invitationStatusFor } from '@/lib/invitations'
 
 async function getProjectForUser(projectId: string, userId: string) {
   const memberships = await prisma.orgMember.findMany({ where: { userId } })
@@ -13,7 +14,7 @@ async function getProjectForUser(projectId: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { id: projectId, organizationId: { in: orgIds } },
     include: {
-      members: true,
+      members: { include: { invitation: { select: { acceptedAt: true, expiresAt: true } } } },
       deliverables: { orderBy: { position: 'asc' } },
       ganttRows: { orderBy: { order: 'asc' } },
     },
@@ -25,7 +26,13 @@ async function getProjectForUser(projectId: string, userId: string) {
     if (!isMember) return null
   }
 
-  return project
+  return {
+    ...project,
+    members: project.members.map(({ invitation, ...m }) => ({
+      ...m,
+      invitationStatus: m.userId ? null : invitationStatusFor(invitation),
+    })),
+  }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
