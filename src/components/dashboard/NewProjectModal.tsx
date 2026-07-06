@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useToast } from '@/lib/context/ToastContext'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 import { TEMPLATES } from '@/lib/templates'
 import type { ProjectTemplate } from '@/lib/types'
 
@@ -39,6 +40,12 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
     endDate: '',
     nextPaymentAmount: '',
     nextPaymentStatus: '',
+  })
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading,
+    dirty: step > 1 && form.title.trim() !== '',
   })
 
   useEffect(() => {
@@ -122,10 +129,12 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
   // ── Step 1: Gallery ────────────────────────────────────────────────────────────
   if (step === 1) {
     return (
-      <div className="fixed inset-0 z-[500] flex items-center justify-center" onClick={onClose}>
+      <div className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         <div
-          className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[660px] shadow-2xl"
+          {...dialogProps}
+          aria-label="Elige una plantilla"
+          className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[660px] shadow-2xl max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
           <h2 className="font-display text-[17px] font-bold text-white mb-1">Elige una plantilla</h2>
@@ -160,7 +169,7 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
               <span>→</span> Empezar en blanco
             </button>
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="text-[11px] text-pv-gray hover:text-white transition-colors"
             >
               Cancelar
@@ -175,10 +184,12 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
   if (step === 2) {
     const hasPreview = selectedTemplate !== null && selectedTemplate.defaultDeliverables.length > 0
     return (
-      <div className="fixed inset-0 z-[500] flex items-center justify-center" onClick={onClose}>
+      <div className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         <div
-          className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[460px] shadow-2xl"
+          {...dialogProps}
+          aria-label="Datos del proyecto"
+          className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[460px] shadow-2xl max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 mb-5">
@@ -287,10 +298,12 @@ export default function NewProjectModal({ open, onClose, onCreated }: Props) {
   // ── Step 3: Deliverable preview ───────────────────────────────────────────────
   if (!selectedTemplate) return null
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[500px] shadow-2xl"
+        {...dialogProps}
+        aria-label="Tareas a crear"
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[500px] shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-1">

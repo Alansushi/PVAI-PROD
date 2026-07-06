@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireProjectAccess } from '@/lib/project-access'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
@@ -54,6 +55,11 @@ export async function POST(req: NextRequest) {
   let contextText: string
 
   if (scope === 'project' && projectId) {
+    const accessible = await requireProjectAccess(userId, projectId)
+    if (!accessible) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {

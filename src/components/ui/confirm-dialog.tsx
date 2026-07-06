@@ -1,5 +1,7 @@
 'use client'
 
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
+
 interface Props {
   open: boolean
   title: string
@@ -19,12 +21,18 @@ export default function ConfirmDialog({
   onCancel,
   loading,
 }: Props) {
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose: onCancel,
+    enabled: open,
+    loading,
+  })
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-xs shadow-2xl p-5 animate-modalIn">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={requestClose} />
+      <div {...dialogProps} aria-label={title} className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-xs shadow-2xl p-5 animate-modalIn">
         <h2 className="font-display text-[15px] font-black text-white mb-1">{title}</h2>
         {description && (
           <p className="text-[12px] text-pv-gray mb-4">{description}</p>

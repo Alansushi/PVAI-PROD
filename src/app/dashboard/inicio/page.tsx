@@ -158,10 +158,12 @@ export default function DashboardInicio() {
   const [projects, setProjects] = useState<Project[]>(cached?.projects ?? [])
   const [orgName, setOrgName] = useState(cached?.orgName ?? '')
   const [loading, setLoading] = useState(!cached)
+  const [loadError, setLoadError] = useState(false)
 
   const fetchProjects = useCallback(() => {
+    setLoadError(false)
     fetch('/api/projects')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(({ projects, orgName }) => {
         const data: CachedData = { projects: projects ?? [], orgName: orgName ?? '' }
         setCached(CACHE_KEY, data)
@@ -169,13 +171,35 @@ export default function DashboardInicio() {
         setOrgName(data.orgName)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        setLoadError(true)
+        setLoading(false)
+      })
   }, [])
 
   // Always revalidate in background; only blocks on first load (no cache)
   useEffect(() => { fetchProjects() }, [fetchProjects])
 
   if (loading) return <InicioSkeleton />
+
+  // Error de red sin datos en caché: mostrar error con retry, NUNCA el empty state
+  // (un usuario con proyectos vería "Crea tu primer proyecto" y pensaría que perdió sus datos)
+  if (loadError && projects.length === 0) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="font-display text-[18px] font-bold text-white">No se pudieron cargar tus proyectos</p>
+        <p className="text-[12px] text-pv-gray text-center max-w-sm">
+          Hubo un problema de conexión con el servidor. Tus datos están seguros — intenta de nuevo.
+        </p>
+        <button
+          onClick={() => { setLoading(true); fetchProjects() }}
+          className="px-4 py-2 text-[12px] font-semibold text-white bg-pv-accent hover:bg-pv-accent/80 rounded-lg transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    )
+  }
 
   const today = new Date()
   const dateStr = today.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -228,6 +252,21 @@ export default function DashboardInicio() {
           {dateStr} · {orgName}
         </p>
       </div>
+
+      {/* Error de revalidación con datos en caché: banner sin ocultar los datos */}
+      {loadError && projects.length > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-pv-amber/10 border border-pv-amber/30 rounded-xl px-4 py-2.5">
+          <p className="text-[12px] text-pv-amber">
+            No se pudo actualizar la información — mostrando la última versión guardada.
+          </p>
+          <button
+            onClick={fetchProjects}
+            className="flex-shrink-0 px-3 py-1.5 text-[11px] font-semibold text-white bg-pv-amber/80 hover:bg-pv-amber rounded-lg transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Onboarding checklist — shown until dismissed or all steps done */}
       <OnboardingChecklist hasProjects={projects.length > 0} />

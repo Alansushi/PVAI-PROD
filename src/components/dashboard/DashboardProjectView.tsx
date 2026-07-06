@@ -146,6 +146,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const [editingKPI, setEditingKPI] = useState<DBProjectKPI | null>(null)
   const [velocityWeeks, setVelocityWeeks] = useState<DBVelocityWeek[]>([])
   const [velocityRequired, setVelocityRequired] = useState(0)
+  const [loadError, setLoadError] = useState(false)
   const [velocityLoading, setVelocityLoading] = useState(true)
   const [editProjectOpen, setEditProjectOpen] = useState(false)
   const VALID_TABS = ['tablero', 'analisis', 'riesgos', 'minutas'] as const
@@ -192,56 +193,57 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
   const fetchActivity = useCallback(() => {
     setActivityLoading(true)
     fetch(`/api/projects/${project.id}/activity`)
-      .then(r => r.ok ? r.json() : [])
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(setActivityLogs)
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setActivityLoading(false))
   }, [project.id])
 
   const fetchDeliverables = useCallback(() => {
     fetch(`/api/projects/${project.id}/deliverables?filter=${deliverableFilter}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => { if (data) setDeliverables(data) })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
   }, [project.id, deliverableFilter])
 
   const fetchPackages = useCallback(() => {
     setPackagesLoading(true)
     fetch(`/api/projects/${project.id}/packages`)
-      .then(r => r.ok ? r.json() : [])
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(setPackages)
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setPackagesLoading(false))
   }, [project.id])
 
   const fetchRisks = useCallback(() => {
     setRisksLoading(true)
     fetch(`/api/projects/${project.id}/risks`)
-      .then(r => r.ok ? r.json() : [])
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(setRisks)
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setRisksLoading(false))
   }, [project.id])
 
   const fetchKPIs = useCallback(() => {
     setKpisLoading(true)
     fetch(`/api/projects/${project.id}/kpis`)
-      .then(r => r.ok ? r.json() : [])
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(setKpis)
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setKpisLoading(false))
   }, [project.id])
 
   const fetchVelocity = useCallback(() => {
     setVelocityLoading(true)
     fetch(`/api/projects/${project.id}/activity?type=velocity`)
-      .then(r => r.ok ? r.json() : { weeks: [], requiredPerWeek: 0 })
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => { setVelocityWeeks(data.weeks ?? []); setVelocityRequired(data.requiredPerWeek ?? 0) })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setVelocityLoading(false))
   }, [project.id])
 
-  useEffect(() => {
+  const fetchAll = useCallback(() => {
+    setLoadError(false)
     fetchDeliverables()
     fetchActivity()
     fetchPackages()
@@ -249,6 +251,10 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
     fetchKPIs()
     fetchVelocity()
   }, [fetchDeliverables, fetchActivity, fetchPackages, fetchRisks, fetchKPIs, fetchVelocity])
+
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
 
   const done         = deliverables.filter(d => d.status === 'ok').length
   const total        = deliverables.length
@@ -481,6 +487,21 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
 
   return (
     <div className="p-5 flex flex-col gap-4">
+      {/* Error de carga — banner con reintento */}
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-pv-red/10 border border-pv-red/30 rounded-xl px-4 py-2.5">
+          <p className="text-[12px] text-pv-red">
+            Algunos datos del proyecto no se pudieron cargar. Lo que ves puede estar incompleto.
+          </p>
+          <button
+            onClick={fetchAll}
+            className="flex-shrink-0 px-3 py-1.5 text-[11px] font-semibold text-white bg-pv-red/80 hover:bg-pv-red rounded-lg transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Header — 3 zonas */}
       <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-6 md:gap-8 items-center">
 
@@ -899,6 +920,7 @@ export default function DashboardProjectView({ project: projectProp }: Props) {
                         onClick={() => openNewTask(col.key as 'ok' | 'warn' | 'danger')}
                         className="text-[16px] leading-none text-pv-gray hover:text-white transition-colors"
                         title="Agregar tarea en esta columna"
+                        aria-label="Agregar tarea en esta columna"
                       >
                         +
                       </button>

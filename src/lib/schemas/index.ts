@@ -42,6 +42,9 @@ export const registerSchema = z.object({
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(128),
   profession: z.string().min(1).max(255),
   firmName: z.string().min(1).max(255),
+  profDetail: z.string().max(255).optional().nullable(),
+  firmUrl: z.string().max(500).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
 })
 
 // ---- Project ----
@@ -55,4 +58,44 @@ export const projectCreateSchema = z.object({
   description: z.string().max(5000).optional().nullable(),
 })
 
-export const projectUpdateSchema = projectCreateSchema.partial()
+const optionalDate = z
+  .string()
+  .refine(s => s === '' || !Number.isNaN(Date.parse(s)), 'Fecha inválida')
+  .optional()
+  .nullable()
+
+export const projectUpdateSchema = projectCreateSchema.partial().extend({
+  budget: z.coerce.number().finite().optional().nullable(),
+  billedAmount: z.coerce.number().finite().optional().nullable(),
+  startDate: optionalDate,
+  endDate: optionalDate,
+  nextPaymentAmount: z.string().max(100).optional().nullable(),
+  nextPaymentStatus: z.string().max(50).optional().nullable(),
+})
+
+// ---- Risk ----
+
+const riskLevel = z.enum(['low', 'medium', 'high'])
+
+export const riskCreateSchema = z.object({
+  title: z.string().trim().min(1, 'title es requerido').max(255),
+  description: z.string().max(5000).optional().nullable(),
+  probability: riskLevel.optional(),
+  impact: riskLevel.optional(),
+  status: z.enum(['open', 'mitigated', 'closed']).optional(),
+  mitigation: z.string().max(5000).optional().nullable(),
+  ownerName: z.string().max(255).optional().nullable(),
+})
+
+export const riskUpdateSchema = riskCreateSchema.partial()
+
+// ---- KPI ----
+
+export const kpiCreateSchema = z.object({
+  title: z.string().trim().min(1, 'title es requerido').max(255),
+  target: z.coerce.number().finite(),
+  current: z.coerce.number().finite().optional(),
+  unit: z.string().trim().max(50).optional(),
+})
+
+export const kpiUpdateSchema = kpiCreateSchema.partial()

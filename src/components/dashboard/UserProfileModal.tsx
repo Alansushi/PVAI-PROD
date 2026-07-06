@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 
 interface Props {
   open: boolean
@@ -17,6 +18,11 @@ interface Props {
 
 export default function UserProfileModal({ open, onClose, user, orgName }: Props) {
   const [signingOut, setSigningOut] = useState(false)
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading: signingOut,
+  })
 
   if (!open) return null
 
@@ -31,15 +37,17 @@ export default function UserProfileModal({ open, onClose, user, orgName }: Props
 
   return (
     <div
-      className="fixed inset-0 z-[500] flex items-center justify-center"
-      onClick={onClose}
+      className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4"
+      onClick={requestClose}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[320px] shadow-2xl"
+        {...dialogProps}
+        aria-label="Perfil de usuario"
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[320px] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Avatar */}

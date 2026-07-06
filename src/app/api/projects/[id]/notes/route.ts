@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireProjectAccess } from '@/lib/project-access'
 
 interface NoteTab {
   id: string
@@ -8,8 +9,7 @@ interface NoteTab {
   content: string
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = prisma as any
+const MAX_NOTES_SIZE = 200_000 // ~200KB total serializado
 
 export async function GET(
   _req: NextRequest,
@@ -20,7 +20,10 @@ export async function GET(
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const { id } = await params
 
-    const row = await db.projectNote.findUnique({
+    const project = await requireProjectAccess(session.user.id, id)
+    if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    const row = await prisma.projectNote.findUnique({
       where: { projectId_userId: { projectId: id, userId: session.user.id } },
     })
 
@@ -51,10 +54,19 @@ export async function PUT(
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const { id } = await params
 
-    const { notes } = await req.json() as { notes: NoteTab[] }
-    const content = JSON.stringify(notes)
+    const project = await requireProjectAccess(session.user.id, id)
+    if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    await db.projectNote.upsert({
+    const { notes } = await req.json() as { notes: NoteTab[] }
+    if (!Array.isArray(notes)) {
+      return NextResponse.json({ error: 'notes debe ser un arreglo' }, { status: 400 })
+    }
+    const content = JSON.stringify(notes)
+    if (content.length > MAX_NOTES_SIZE) {
+      return NextResponse.json({ error: 'Contenido demasiado largo' }, { status: 400 })
+    }
+
+    await prisma.projectNote.upsert({
       where: { projectId_userId: { projectId: id, userId: session.user.id } },
       update: { content },
       create: { projectId: id, userId: session.user.id, content },

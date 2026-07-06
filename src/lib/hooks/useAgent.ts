@@ -109,17 +109,6 @@ export function useAgent(projectId: string) {
     }
   }, [projectId, addCard, setTyping])
 
-  const generateDoc = useCallback(() => {
-    setProcessing('Leyendo planos y cuadro de áreas...')
-    setTimeout(() => {
-      setProcessing('Generando memoria descriptiva...')
-      setTimeout(() => {
-        setProcessing(false)
-        addCard('<strong>📄 Memoria descriptiva generada:</strong> Lista para revisión. <span class="warn">2 secciones desactualizadas por cambios de minuta</span> — revísalas antes de firmar.')
-      }, 1800)
-    }, 1000)
-  }, [setProcessing, addCard])
-
   const processMinuta = useCallback(async (text: string, onDone: (plan?: MinutaPlan) => void) => {
     setProcessing('Analizando acuerdos...')
     try {
@@ -260,5 +249,5 @@ export function useAgent(projectId: string) {
     }).catch(() => {})
   }, [projectId, dismissCard])
 
-  return { askAgent, sendFree, generateDoc, processMinuta, refreshHistory, executeCardAction, undoCardAction, dismissCardServer }
+  return { askAgent, sendFree, processMinuta, refreshHistory, executeCardAction, undoCardAction, dismissCardServer }
 }

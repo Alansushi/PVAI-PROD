@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { DBProjectMember } from '@/lib/db-types'
+import { useToast } from '@/lib/context/ToastContext'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 
 const MEMBER_COLORS = [
   '#2E8FC0',
@@ -35,6 +37,7 @@ interface Props {
 }
 
 export default function InviteMemberModal({ open, onClose, projectId, onAdded }: Props) {
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [foundUser, setFoundUser] = useState<FoundUser | null>(null)
@@ -46,6 +49,12 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
     color: MEMBER_COLORS[0],
   })
   const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading,
+    trackDirty: true,
+  })
 
   useEffect(() => {
     setError(null)
@@ -105,6 +114,11 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
       if (res.ok) {
         const saved = await res.json()
         onAdded(saved as DBProjectMember)
+        showToast(
+          !foundUser && form.email.trim()
+            ? 'Colaborador agregado — se envió la invitación por email'
+            : 'Colaborador agregado'
+        )
         setForm({ name: '', role: '', email: '', color: MEMBER_COLORS[0] })
         setFoundUser(null)
         onClose()
@@ -120,10 +134,12 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[400px] shadow-2xl"
+        {...dialogProps}
+        aria-label="Agregar colaborador"
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[400px] shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-[17px] font-bold text-white mb-5">Agregar colaborador</h2>
@@ -211,6 +227,7 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
                   className="w-7 h-7 rounded-full transition-all hover:scale-110 flex items-center justify-center"
                   style={{ background: c, outline: form.color === c ? `3px solid white` : 'none', outlineOffset: '2px' }}
                   title={c}
+                  aria-label={`Color de avatar ${c}`}
                 />
               ))}
             </div>
@@ -239,7 +256,7 @@ export default function InviteMemberModal({ open, onClose, projectId, onAdded }:
           <div className="flex gap-2 pt-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="flex-1 px-3 py-2 text-[11px] font-semibold text-pv-gray border border-white/[0.10] rounded-lg hover:bg-white/[0.05] transition-colors"
             >
               Cancelar

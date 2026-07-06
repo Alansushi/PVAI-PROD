@@ -290,6 +290,43 @@ Nuevos prompts en `src/lib/agent-prompts.ts`:
 
 ---
 
+## F-Audit — Auditoría Seguridad / UX / Arquitectura ✅ COMPLETADA (2026-07-06)
+
+**Branch:** `fix/audit-seguridad-ux`
+
+### Seguridad ✅
+- **IDOR risks/kpis:** `PUT/DELETE /risks/[riskId]` y `/kpis/[kpiId]` operaban solo por id del sub-recurso → cualquier usuario autenticado podía editar/borrar riesgos y KPIs de otras organizaciones. Ahora validan pertenencia (`findFirst({ id, projectId })`)
+- **IDOR share/generate-summary:** leía cualquier proyecto por id sin check de membresía → fuga cross-tenant. Ahora usa `requireProjectAccess`
+- **idempotencyKey del agente:** la caché de respuestas se busca ahora filtrada por `userId` (antes un key ajeno devolvía la respuesta cacheada de otro usuario)
+- **Crons endurecidos:** `src/lib/cron-auth.ts` — secret solo por header `Authorization: Bearer`, comparación timing-safe (`crypto.timingSafeEqual`); ya no se acepta `?secret=` por query string; respuesta sin mensajes de error internos
+- **Validación:** zod en `PUT /projects/[id]` (usa `projectUpdateSchema` extendido), risks y kpis (`riskCreateSchema`/`kpiCreateSchema`); `registerSchema` incluye `profDetail/firmUrl/phone`; límites de tamaño en minutas (50KB/campo) y notes (200KB)
+- **notes:** ahora verifica acceso al proyecto; **notifications:** POST eliminado (sin uso en cliente; evita spoofing interno)
+
+### UX ✅
+- **`src/lib/hooks/useModalA11y.ts`:** Escape, focus trap, retorno de foco, scroll-lock del body, backdrop pide confirmación si hay cambios sin guardar y se bloquea durante submit; stack global para modales anidados. Aplicado a los 11 modales custom
+- **Errores de red visibles:** banner rojo con "Reintentar" en vista de proyecto (los 6 fetches silenciaban errores); `/inicio` distingue error de red vs "sin proyectos" (antes mostraba el empty state al fallar); notas muestran "Error al guardar" + retry
+- **Responsive:** modales con ancho fijo en px → `w-full max-w-*` (rompían a 375px)
+- **Fixes:** timezone off-by-one en `ProjectEditModal` (usa `toDateInput`), toast en InviteMemberModal, confirm al eliminar paquete, aria-labels en botones de icono, sin `router.refresh()` redundante al crear proyecto, `AgentPanel` sin fallback `'pedregal'`
+
+### Arquitectura ✅
+- **`src/lib/project-access.ts`:** `requireProjectAccess(userId, projectId)` adoptado en 12 rutas (9 copias eliminadas); `agent-messages` ahora aplica el check de guest que omitía
+- **`GET /api/projects`:** una sola query con `OR` (antes N queries, una por membership)
+- **Índices Prisma:** `AuditLog(projectId,createdAt)`, `AuditLog(entity,entityId)`, `AgentMessage(projectId,createdAt)`, `AgentMessage(userId,createdAt)`, `GanttRow(projectId)`; `onDelete: Cascade` en `AgentMessage/AuditLog → Project`
+- **Migración:** `20260706165200_audit_indexes_cascades` — aplicada en Supabase vía MCP
+- **Drift DB corregido:** la migración `20260504000000_add_agent_message_scope` estaba en el repo pero NO aplicada en Supabase — los inserts del agente proactivo con `scope` fallaban en silencio. Aplicada
+- **Limpieza:** deps `@react-pdf/renderer` y `shadcn` eliminadas (0 referencias); mock `generateDoc` eliminado de `useAgent`
+
+### Pendientes documentados ⚪ (decisiones diferidas a propósito)
+- **Roles en operaciones destructivas:** cualquier miembro (incl. guest con acceso) puede borrar entregables/riesgos/KPIs/paquetes y gestionar miembros/invitaciones. Decidido NO cambiar en esta ronda (evitar romper flujos mientras `fix/invitation-linking` está en curso)
+- **Crons desactivados:** `vercel.json` está vacío a propósito — `daily-alerts` y `proactive-alerts` NO corren automáticamente. Para reactivar: bloque `crons` en vercel.json + `CRON_SECRET` en Vercel (los handlers ya aceptan el GET de Vercel Cron con header Authorization)
+- **`check-domain`:** endpoint público que enumera organizaciones por dominio de email — lo usa el flujo de invitaciones; revisar al cerrar esa rama
+- **Dinero `Float` → `Decimal`:** `Project.budget/billedAmount`, `ProjectKPI.target/current` — requiere plan propio (Decimal serializa distinto y afecta la aritmética del frontend)
+- **Eliminar `db-types.ts` + `prisma as any`:** el cliente generado ya tiene todos los modelos; quedan ~60 casts. Hacerlo después de mergear `fix/invitation-linking` para evitar conflictos masivos
+- **Verificación de email en registro** y **onboarding accionable** (pasos que naveguen a la función)
+- **Nota:** el PDF ejecutivo (F3.2) ya no existe en el código — el ROADMAP lo marcaba hecho pero no hay referencias; si se quiere de vuelta, reimplementar
+
+---
+
 ## Tabla de prioridades
 
 | Fase | Feature | Impacto | Estado |

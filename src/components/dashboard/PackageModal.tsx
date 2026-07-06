@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { DBDeliverablePackage, DBDeliverable } from '@/lib/db-types'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface MilestoneForm {
   type: 'pre-entrega' | 'final'
@@ -42,6 +44,13 @@ export default function PackageModal({
   const [milestones, setMilestones] = useState<MilestoneForm[]>([])
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading: loading || deleting,
+    trackDirty: true,
+  })
   const [error, setError] = useState<string | null>(null)
   const [delvOpen, setDelvOpen] = useState(false)
   const delvRef = useRef<HTMLDivElement>(null)
@@ -155,6 +164,7 @@ export default function PackageModal({
       onClose()
     } finally {
       setDeleting(false)
+      setConfirmOpen(false)
     }
   }
 
@@ -162,15 +172,16 @@ export default function PackageModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={requestClose} />
+      <div {...dialogProps} aria-label={isEditing ? 'Editar paquete' : 'Nuevo paquete'} className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between flex-shrink-0">
           <h2 className="font-display text-[16px] font-black text-white">
             {isEditing ? 'Editar paquete' : 'Nuevo paquete'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={requestClose}
+            aria-label="Cerrar"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-pv-gray hover:text-white hover:bg-white/10 transition-colors text-lg"
           >
             ×
@@ -375,7 +386,7 @@ export default function PackageModal({
             {isEditing && onDeleted && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setConfirmOpen(true)}
                 disabled={deleting}
                 className="px-3 py-1.5 text-[11px] font-semibold text-pv-red border border-pv-red/30 rounded-lg hover:bg-pv-red/10 transition-colors disabled:opacity-50 mr-auto"
               >
@@ -384,7 +395,7 @@ export default function PackageModal({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="px-3 py-1.5 text-[11px] font-semibold text-pv-gray border border-white/[0.1] rounded-lg hover:bg-white/[0.06] transition-colors ml-auto"
             >
               Cancelar
@@ -399,6 +410,14 @@ export default function PackageModal({
           </div>
         </form>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="¿Eliminar paquete?"
+        description="Esta acción no se puede deshacer."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmOpen(false)}
+        loading={deleting}
+      />
     </div>
   )
 }

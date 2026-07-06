@@ -13,8 +13,9 @@ export default function NewProjectButton({ onCreated }: Props = {}) {
   const router = useRouter()
 
   function handleCreated() {
-    router.refresh()
-    onCreated?.()
+    // Si el padre ya refetchea (onCreated), evitar el doble refresh de servidor
+    if (onCreated) onCreated()
+    else router.refresh()
   }
 
   return (

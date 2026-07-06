@@ -20,7 +20,8 @@ export default function AgentPanel() {
   const params = useParams()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const projectId = (params?.projectId as string) ?? 'pedregal'
+  // Vacío cuando no hay proyecto en la ruta (p. ej. /dashboard/inicio)
+  const projectId = (params?.projectId as string) ?? ''
   const {
     cards,
     isTyping,
@@ -55,7 +56,7 @@ export default function AgentPanel() {
 
   // Load history from API on mount
   useEffect(() => {
-    if (cards.length > 0) return
+    if (!projectId || cards.length > 0) return
     fetch(`/api/projects/${projectId}/agent-messages`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -106,6 +107,7 @@ export default function AgentPanel() {
           onClick={doRefresh}
           className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title="Actualizar análisis"
+          aria-label="Actualizar análisis"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <polyline points="23 4 23 10 17 10" />
@@ -117,6 +119,7 @@ export default function AgentPanel() {
           onClick={() => setHistoryOpen(true)}
           className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title="Historial del agente"
+          aria-label="Historial del agente"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -129,6 +132,7 @@ export default function AgentPanel() {
           onClick={() => setCollapsed(!collapsed)}
           className="text-pv-gray hover:text-pv-accent transition-colors p-0.5 focus-visible:ring-2 focus-visible:ring-pv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pv-navy focus-visible:outline-none rounded"
           title={collapsed ? 'Expandir panel' : 'Colapsar panel'}
+          aria-label={collapsed ? 'Expandir panel' : 'Colapsar panel'}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             {collapsed

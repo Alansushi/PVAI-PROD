@@ -1,23 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireProjectAccess as getProjectAccess } from '@/lib/project-access'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
-
-async function getProjectAccess(userId: string, projectId: string) {
-  const memberships = await prisma.orgMember.findMany({ where: { userId } })
-  if (!memberships.length) return null
-  const orgIds = memberships.map(m => m.organizationId)
-  const project = await prisma.project.findFirst({ where: { id: projectId, organizationId: { in: orgIds } } })
-  if (!project) return null
-  const guestOrgIds = memberships.filter(m => m.role === 'guest').map(m => m.organizationId)
-  if (guestOrgIds.includes(project.organizationId)) {
-    const isMember = await prisma.projectMember.findFirst({ where: { projectId, userId } })
-    if (!isMember) return null
-  }
-  return project
-}
 
 type Params = { params: Promise<{ id: string; deliverableId: string }> }
 
