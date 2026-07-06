@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { maskEmail } from '@/lib/invitations'
 
 type Params = { params: Promise<{ token: string }> }
 
@@ -31,7 +32,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     projectRole: invitation.projectRole,
     inviterName: invitation.invitedBy.name,
     expiresAt:   invitation.expiresAt,
-    // email is intentionally omitted from the public GET — only verified after POST accept
+    // full email is intentionally omitted from the public GET — only verified after POST accept
+    maskedEmail: maskEmail(invitation.email),
   })
 }
 

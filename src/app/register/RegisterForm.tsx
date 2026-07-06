@@ -38,6 +38,7 @@ export default function RegisterForm({ invitationToken }: Props) {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [invitationNotice, setInvitationNotice] = useState('')
   const [domainOrgs, setDomainOrgs] = useState<{ name: string }[]>([])
   const domainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -104,6 +105,18 @@ export default function RegisterForm({ invitationToken }: Props) {
         return
       }
 
+      // Account created but the invitation couldn't be linked — tell the user why
+      if (invitationToken && data.invitationStatus && data.invitationStatus !== 'linked') {
+        const messages: Record<string, string> = {
+          email_mismatch: `La invitación fue enviada a ${data.invitedEmailMasked ?? 'otro correo'}, pero tu cuenta se creó con ${form.email}. No quedaste vinculado al proyecto: pide a quien te invitó que reenvíe la invitación a este correo.`,
+          expired: 'La invitación ya expiró, así que no quedaste vinculado al proyecto. Pide a quien te invitó que la reenvíe.',
+          not_found: 'La invitación ya no es válida (fue usada o eliminada), así que no quedaste vinculado al proyecto.',
+        }
+        setInvitationNotice(messages[data.invitationStatus] ?? messages.not_found)
+        setLoading(false)
+        return
+      }
+
       // Auto sign-in after registration
       await signIn('credentials', {
         email: form.email,
@@ -119,6 +132,29 @@ export default function RegisterForm({ invitationToken }: Props) {
   const inputClass =
     'w-full bg-white/[0.06] border border-white/[0.12] rounded-xl px-4 py-2.5 text-[14px] text-white placeholder:text-[#4A6070] focus:outline-none focus:border-[#2E8FC0] transition-colors'
   const labelClass = 'block text-[12px] font-medium text-[#8BA3B8] mb-1.5'
+
+  if (invitationNotice) {
+    return (
+      <div className="space-y-6">
+        <div className="text-[13px] text-white bg-[#E09B3D]/10 border border-[#E09B3D]/30 rounded-xl px-4 py-4 leading-relaxed">
+          <p className="font-semibold text-[#E09B3D] mb-1">Tu cuenta se creó correctamente</p>
+          {invitationNotice}
+        </div>
+        <button
+          onClick={() =>
+            signIn('credentials', {
+              email: form.email,
+              password: form.password,
+              callbackUrl: '/dashboard/inicio',
+            })
+          }
+          className="w-full bg-[#2E8FC0] hover:bg-[#2680AD] text-white font-semibold text-[14px] py-3 px-4 rounded-xl transition-colors"
+        >
+          Continuar al dashboard →
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

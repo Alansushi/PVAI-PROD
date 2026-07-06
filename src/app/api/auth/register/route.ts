@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { sendWelcomeEmail } from '@/lib/email'
 import { registerSchema } from '@/lib/schemas'
+import { maskEmail } from '@/lib/invitations'
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,19 +62,24 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, organizationId: org.id, role: 'admin' },
     })
 
-    // Auto-accept a pending invitation if a token was provided
+    // Auto-accept a pending invitation if a token was provided.
+    // If it can't be linked, report why instead of failing silently.
+    let invitationStatus: 'linked' | 'not_found' | 'expired' | 'email_mismatch' | null = null
+    let invitedEmailMasked: string | null = null
     if (invitationToken) {
       const invitation = await prisma.invitation.findUnique({
         where: { token: invitationToken },
         include: { projectMember: true },
       })
 
-      if (
-        invitation &&
-        !invitation.acceptedAt &&
-        invitation.expiresAt > new Date() &&
-        invitation.email.toLowerCase() === normalizedEmail
-      ) {
+      if (!invitation || invitation.acceptedAt) {
+        invitationStatus = 'not_found'
+      } else if (invitation.expiresAt <= new Date()) {
+        invitationStatus = 'expired'
+      } else if (invitation.email.toLowerCase() !== normalizedEmail) {
+        invitationStatus = 'email_mismatch'
+        invitedEmailMasked = maskEmail(invitation.email)
+      } else {
         // Join the invited org
         const alreadyInOrg = await prisma.orgMember.findFirst({
           where: { userId: user.id, organizationId: invitation.organizationId },
@@ -101,12 +107,14 @@ export async function POST(req: NextRequest) {
           where: { token: invitationToken },
           data: { acceptedAt: new Date() },
         })
+
+        invitationStatus = 'linked'
       }
     }
 
     sendWelcomeEmail({ name: user.name, email: user.email }).catch(() => {})
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, invitationStatus, invitedEmailMasked })
   } catch {
     return NextResponse.json(
       { error: 'Error interno del servidor' },

@@ -53,6 +53,8 @@ export interface DBProjectMember {
   color: string
   role: string
   isExternal: boolean
+  /** Estado de la invitación por email cuando userId es null (calculado en el API) */
+  invitationStatus?: 'pending' | 'expired' | null
 }
 
 export interface DBDeliverable {

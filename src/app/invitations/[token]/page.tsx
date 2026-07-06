@@ -1,32 +1,29 @@
 import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { maskEmail } from '@/lib/invitations'
 import InvitationAccept from './InvitationAccept'
 
 type Props = { params: Promise<{ token: string }> }
 
-async function getInvitation(token: string) {
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const res = await fetch(`${baseUrl}/api/invitations/${token}`, { cache: 'no-store' })
-  if (!res.ok) return null
-  return res.json() as Promise<{
-    email: string
-    orgName: string
-    projectId: string | null
-    projectRole: string | null
-    inviterName: string | null
-    expiresAt: string
-  }>
-}
-
 export default async function InvitationPage({ params }: Props) {
   const { token } = await params
-  const [session, invitation] = await Promise.all([auth(), getInvitation(token)])
+  const [session, invitation] = await Promise.all([
+    auth(),
+    prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        organization: { select: { name: true } },
+        invitedBy:    { select: { name: true } },
+      },
+    }),
+  ])
 
-  if (!invitation) {
+  if (!invitation || invitation.acceptedAt) {
     return (
       <PageShell>
         <h1 className="text-[20px] font-bold text-white mb-2">Invitación no válida</h1>
         <p className="text-[13px] text-[#8BA3B8]">
-          Este enlace expiró, ya fue usado o no existe.
+          Este enlace ya fue usado o no existe.
         </p>
         <a
           href="/login"
@@ -38,17 +35,33 @@ export default async function InvitationPage({ params }: Props) {
     )
   }
 
+  const masked = maskEmail(invitation.email)
+
+  if (invitation.expiresAt < new Date()) {
+    return (
+      <PageShell>
+        <h1 className="text-[20px] font-bold text-white mb-2">Invitación expirada</h1>
+        <p className="text-[13px] text-[#8BA3B8]">
+          El enlace para <span className="text-white">{masked}</span> expiró.
+          Pide a {invitation.invitedBy.name ?? 'quien te invitó'} que la reenvíe
+          desde el equipo del proyecto.
+        </p>
+      </PageShell>
+    )
+  }
+
   // Logged-in + wrong email
   if (session?.user?.email && session.user.email.toLowerCase() !== invitation.email.toLowerCase()) {
     return (
       <PageShell>
         <h1 className="text-[20px] font-bold text-white mb-2">Invitación para otro email</h1>
         <p className="text-[13px] text-[#8BA3B8] mb-1">
-          Esta invitación es para <span className="text-white">{invitation.email}</span>.
+          Esta invitación es para <span className="text-white">{masked}</span>.
         </p>
         <p className="text-[13px] text-[#8BA3B8]">
           Estás conectado como <span className="text-white">{session.user.email}</span>.
-          Cierra sesión y entra con la cuenta correcta.
+          Cierra sesión y entra con la cuenta invitada, o pide que reenvíen la
+          invitación a tu email actual.
         </p>
       </PageShell>
     )
@@ -74,7 +87,7 @@ export default async function InvitationPage({ params }: Props) {
           </a>
         </div>
         <p className="text-[11px] text-[#4A5C6A] text-center mt-4">
-          La invitación es para {invitation.email}
+          La invitación es para {masked}. Regístrate o inicia sesión con ese email.
         </p>
       </PageShell>
     )
@@ -90,7 +103,7 @@ export default async function InvitationPage({ params }: Props) {
 }
 
 function InvitationCard({ invitation }: {
-  invitation: { orgName: string; projectRole: string | null; inviterName: string | null }
+  invitation: { orgName?: string; projectRole: string | null; invitedBy: { name: string | null }; organization: { name: string } }
 }) {
   return (
     <div>
@@ -98,8 +111,8 @@ function InvitationCard({ invitation }: {
         Invitación a Proyecto Vivo
       </div>
       <h1 className="text-[22px] font-bold text-white mb-2 leading-tight">
-        {invitation.inviterName ?? 'Tu equipo'} te invitó a{' '}
-        <span className="text-[#2E8FC0]">{invitation.orgName}</span>
+        {invitation.invitedBy.name ?? 'Tu equipo'} te invitó a{' '}
+        <span className="text-[#2E8FC0]">{invitation.organization.name}</span>
       </h1>
       {invitation.projectRole && (
         <p className="text-[13px] text-[#8BA3B8]">
