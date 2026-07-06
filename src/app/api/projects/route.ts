@@ -20,39 +20,31 @@ export async function GET() {
     return NextResponse.json({ error: 'No organization found' }, { status: 404 })
   }
 
-  const projectsList = await Promise.all(
-    memberships.map(m => {
-      if (m.role !== 'admin') {
-        return prisma.project.findMany({
-          where: {
-            organizationId: m.organizationId,
-            members: { some: { userId: session.user.id } },
-          },
-          include: {
-            members: true,
-            deliverables: { orderBy: { position: 'asc' } },
-            ganttRows: { orderBy: { order: 'asc' } },
-            risks: { where: { status: 'open' }, select: { id: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-      }
-      return prisma.project.findMany({
-        where: { organizationId: m.organizationId },
-        include: {
-          members: true,
-          deliverables: { orderBy: { position: 'asc' } },
-          ganttRows: { orderBy: { order: 'asc' } },
-          risks: { where: { status: 'open' }, select: { id: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      })
-    })
-  )
+  // Una sola query para todas las orgs: admin ve todo, el resto solo
+  // proyectos donde es ProjectMember (antes: una query por membership)
+  const adminOrgIds = memberships.filter(m => m.role === 'admin').map(m => m.organizationId)
+  const otherOrgIds = memberships.filter(m => m.role !== 'admin').map(m => m.organizationId)
 
-  // Flatten and deduplicate by project id
-  const allProjects = projectsList.flat()
-  const projects = Array.from(new Map(allProjects.map(p => [p.id, p])).values())
+  const projects = await prisma.project.findMany({
+    where: {
+      OR: [
+        ...(adminOrgIds.length ? [{ organizationId: { in: adminOrgIds } }] : []),
+        ...(otherOrgIds.length
+          ? [{
+              organizationId: { in: otherOrgIds },
+              members: { some: { userId: session.user.id } },
+            }]
+          : []),
+      ],
+    },
+    include: {
+      members: true,
+      deliverables: { orderBy: { position: 'asc' } },
+      ganttRows: { orderBy: { order: 'asc' } },
+      risks: { where: { status: 'open' }, select: { id: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
 
   // Bulk velocity query (last 2 weeks of deliverable completions)
   const projectIds = projects.map(p => p.id)

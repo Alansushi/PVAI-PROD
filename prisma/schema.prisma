@@ -179,6 +179,8 @@ model GanttRow {
   order     Int    @default(0)
 
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 model DeliverablePackage {
@@ -229,8 +231,11 @@ model AgentMessage {
   idempotencyKey  String?  @unique
   createdAt       DateTime @default(now())
 
-  project   Project? @relation(fields: [projectId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {
@@ -247,8 +252,11 @@ model AuditLog {
   createdAt     DateTime @default(now())
 
   user          User         @relation(fields: [userId], references: [id])
-  project       Project?     @relation(fields: [projectId], references: [id])
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   deliverable   Deliverable? @relation(fields: [deliverableId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([entity, entityId])
 }
 
 model Notification {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import type { DBProcessedMinutaListItem } from '@/lib/db-types'
+import { requireProjectAccess } from '@/lib/project-access'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
@@ -12,19 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
 
-  const memberships = await prisma.orgMember.findMany({ where: { userId: session.user.id } })
-  if (!memberships.length) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const orgIds = memberships.map(m => m.organizationId)
-  const guestOrgIds = memberships.filter(m => m.role === 'guest').map(m => m.organizationId)
-  const project = await prisma.project.findFirst({
-    where: { id, organizationId: { in: orgIds } },
-  })
+  const project = await requireProjectAccess(session.user.id, id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (guestOrgIds.includes(project.organizationId)) {
-    const isMember = await prisma.projectMember.findFirst({ where: { projectId: id, userId: session.user.id } })
-    if (!isMember) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
 
   const minutas = await db.processedMinuta.findMany({
     where: { projectId: id },
@@ -62,19 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
 
-  const membershipsPost = await prisma.orgMember.findMany({ where: { userId: session.user.id } })
-  if (!membershipsPost.length) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const orgIdsPost = membershipsPost.map(m => m.organizationId)
-  const guestOrgIdsPost = membershipsPost.filter(m => m.role === 'guest').map(m => m.organizationId)
-  const project = await prisma.project.findFirst({
-    where: { id, organizationId: { in: orgIdsPost } },
-  })
+  const project = await requireProjectAccess(session.user.id, id)
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (guestOrgIdsPost.includes(project.organizationId)) {
-    const isMember = await prisma.projectMember.findFirst({ where: { projectId: id, userId: session.user.id } })
-    if (!isMember) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
 
   const { title, inputText, summary, actionsJson } = await req.json()
 

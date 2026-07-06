@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireProjectAccess } from '@/lib/project-access'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
 
-async function verifyProjectAccess(projectId: string, userId: string) {
-  const memberships = await prisma.orgMember.findMany({
-    where: { userId },
-    select: { organizationId: true },
-  })
-  if (!memberships.length) return false
-  const orgIds = memberships.map(m => m.organizationId)
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, organizationId: { in: orgIds } },
-    select: { id: true },
-  })
-  return !!project
-}
+// Delegado al helper compartido (además aplica el check de guest,
+// que la versión local anterior omitía)
+const verifyProjectAccess = (projectId: string, userId: string) =>
+  requireProjectAccess(userId, projectId)
 
 export async function GET(
   _req: NextRequest,
