@@ -28,6 +28,16 @@ export async function linkPendingInvitations(
 ): Promise<number> {
   if (!email) return 0
 
+  // Solo auto-vincular si la propiedad del email está comprobada: verificado
+  // explícitamente o cuenta OAuth (Google verifica el email). Un registro por
+  // contraseña sin verificar podría usurpar invitaciones ajenas; ese caso
+  // conserva el flujo por token (el link llega al correo invitado).
+  const user = await prisma.user.findUnique({
+    where:  { id: userId },
+    select: { emailVerified: true, accounts: { select: { provider: true }, take: 1 } },
+  })
+  if (!user || (!user.emailVerified && user.accounts.length === 0)) return 0
+
   const invitations = await prisma.invitation.findMany({
     where: {
       email:      email.toLowerCase(),
