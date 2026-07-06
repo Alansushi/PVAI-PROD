@@ -7,7 +7,7 @@ import { registerSchema } from '@/lib/schemas'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { profDetail, firmUrl, phone, invitationToken } = body
+    const invitationToken = typeof body.invitationToken === 'string' ? body.invitationToken : undefined
 
     const parsed = registerSchema.safeParse(body)
     if (!parsed.success) {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
-    const { name, email, password, profession, firmName } = parsed.data
+    const { name, email, password, profession, firmName, profDetail, firmUrl, phone } = parsed.data
     const normalizedEmail = email.toLowerCase()
 
     // Check unique email (case-insensitive)

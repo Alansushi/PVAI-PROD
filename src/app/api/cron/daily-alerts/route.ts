@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendOverdueTaskAlert } from '@/lib/email'
+import { isAuthorizedCron } from '@/lib/cron-auth'
 
-// Called daily by Vercel Cron (or manually with ?secret=CRON_SECRET)
+// Called daily by Vercel Cron (Authorization: Bearer CRON_SECRET)
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('authorization')?.replace('Bearer ', '')
-    ?? new URL(req.url).searchParams.get('secret')
-
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  if (!isAuthorizedCron(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -151,17 +149,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (errors.length > 0) {
+    console.error('[daily-alerts] errors:', errors)
+  }
+
   return NextResponse.json({
     ok: true,
     overdueFound: overdueDeliverables.length,
     emailsSent,
     notificationsCreated,
     velocityRiskNotifs,
-    errors: errors.length > 0 ? errors : undefined,
+    errorCount: errors.length,
   })
 }
 
-// Allow GET for easy manual testing in browser
+// Vercel Cron invoca con GET + header Authorization: Bearer CRON_SECRET
 export async function GET(req: NextRequest) {
   return POST(req)
 }

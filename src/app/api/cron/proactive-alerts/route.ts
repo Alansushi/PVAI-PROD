@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAuthorizedCron } from '@/lib/cron-auth'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
 
-function authCron(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const auth = req.headers.get('authorization')
-  if (auth === `Bearer ${secret}`) return true
-  const url = new URL(req.url)
-  return url.searchParams.get('secret') === secret
-}
-
 export async function GET(req: NextRequest) {
-  if (!authCron(req)) {
+  if (!isAuthorizedCron(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

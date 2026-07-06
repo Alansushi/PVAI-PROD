@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit'
+import { projectUpdateSchema } from '@/lib/schemas'
 
 async function getProjectForUser(projectId: string, userId: string) {
   const memberships = await prisma.orgMember.findMany({ where: { userId } })
@@ -47,7 +48,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const existing = await getProjectForUser(id, session.user.id)
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const body = await req.json()
+  const parsed = projectUpdateSchema.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Datos inválidos' },
+      { status: 400 }
+    )
+  }
+  const body = parsed.data
 
   const updated = await prisma.project.update({
     where: { id },
@@ -59,8 +67,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       endDate: body.endDate ? new Date(body.endDate) : undefined,
       nextPaymentAmount: body.nextPaymentAmount ?? undefined,
       nextPaymentStatus: body.nextPaymentStatus ?? undefined,
-      budget: body.budget != null ? Number(body.budget) : undefined,
-      billedAmount: body.billedAmount != null ? Number(body.billedAmount) : undefined,
+      budget: body.budget != null ? body.budget : undefined,
+      billedAmount: body.billedAmount != null ? body.billedAmount : undefined,
     },
   })
 

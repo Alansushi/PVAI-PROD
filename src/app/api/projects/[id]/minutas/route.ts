@@ -78,14 +78,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { title, inputText, summary, actionsJson } = await req.json()
 
+  const MAX_TEXT = 50_000 // ~50KB por campo
+  if (
+    (typeof title === 'string' && title.length > 255) ||
+    (typeof inputText === 'string' && inputText.length > MAX_TEXT) ||
+    (typeof summary === 'string' && summary.length > MAX_TEXT) ||
+    (typeof actionsJson === 'string' && actionsJson.length > MAX_TEXT)
+  ) {
+    return NextResponse.json({ error: 'Contenido demasiado largo' }, { status: 400 })
+  }
+
   const minuta = await db.processedMinuta.create({
     data: {
       projectId: id,
       userId: session.user.id,
-      title: title ?? 'Minuta sin título',
-      inputText: inputText ?? '',
-      summary: summary ?? '',
-      actionsJson: actionsJson ?? '[]',
+      title: typeof title === 'string' && title.trim() ? title.trim() : 'Minuta sin título',
+      inputText: typeof inputText === 'string' ? inputText : '',
+      summary: typeof summary === 'string' ? summary : '',
+      actionsJson: typeof actionsJson === 'string' ? actionsJson : '[]',
     },
   })
 

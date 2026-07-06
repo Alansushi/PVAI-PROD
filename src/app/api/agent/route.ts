@@ -203,6 +203,7 @@ export async function POST(req: NextRequest) {
     const existing = await db.agentMessage.findFirst({
       where: {
         idempotencyKey,
+        userId: session.user.id,
         role: 'agent',
         createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
       },
