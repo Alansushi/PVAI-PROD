@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import type { DBDeliverable, DBProjectMember, DBDeliverableDependency } from '@/lib/db-types'
 import { toDateInput } from '@/lib/dates'
 import { useToast } from '@/lib/context/ToastContext'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface Props {
@@ -58,6 +59,7 @@ export default function DBTaskModal({
   const [blockedBy, setBlockedBy] = useState<DBDeliverableDependency[]>([])
   const [addingBlocker, setAddingBlocker] = useState('')
   const [depLoading, setDepLoading] = useState(false)
+  const [depSubmitting, setDepSubmitting] = useState(false)
   const [form, setForm] = useState({
     name: '',
     status: defaultStatus as Status,
@@ -66,6 +68,12 @@ export default function DBTaskModal({
     startDate: '',
     dueDate: '',
     notes: '',
+  })
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading: loading || deleting,
+    trackDirty: true,
   })
 
   // Reset error when modal opens/closes
@@ -231,7 +239,8 @@ export default function DBTaskModal({
   }
 
   async function handleAddBlocker() {
-    if (!editingDeliverable || !addingBlocker) return
+    if (!editingDeliverable || !addingBlocker || depSubmitting) return
+    setDepSubmitting(true)
     try {
       const res = await fetch(
         `/api/projects/${projectId}/deliverables/${editingDeliverable.id}/dependencies`,
@@ -241,19 +250,31 @@ export default function DBTaskModal({
         const dep = await res.json()
         setBlockedBy(prev => [...prev, dep])
         setAddingBlocker('')
+      } else {
+        showToast('No se pudo agregar el bloqueador', 'error')
       }
-    } catch { /* silent */ }
+    } catch {
+      showToast('No se pudo agregar el bloqueador', 'error')
+    } finally {
+      setDepSubmitting(false)
+    }
   }
 
   async function handleRemoveBlocker(blockerId: string) {
-    if (!editingDeliverable) return
+    if (!editingDeliverable || depSubmitting) return
+    setDepSubmitting(true)
     try {
-      await fetch(
+      const res = await fetch(
         `/api/projects/${projectId}/deliverables/${editingDeliverable.id}/dependencies`,
         { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blockerId }) },
       )
+      if (!res.ok) throw new Error()
       setBlockedBy(prev => prev.filter(d => d.blockerId !== blockerId))
-    } catch { /* silent */ }
+    } catch {
+      showToast('No se pudo quitar el bloqueador', 'error')
+    } finally {
+      setDepSubmitting(false)
+    }
   }
 
   async function handleDelete() {
@@ -276,12 +297,14 @@ export default function DBTaskModal({
 
   return (
     <div
-      className="fixed inset-0 z-[500] flex items-center justify-center"
-      onClick={onClose}
+      className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4"
+      onClick={requestClose}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[420px] shadow-2xl max-h-[90vh] overflow-y-auto"
+        {...dialogProps}
+        aria-label={isEditing ? 'Editar entregable' : 'Nueva tarea'}
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[420px] shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-[17px] font-bold text-white mb-5">
@@ -431,7 +454,9 @@ export default function DBTaskModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveBlocker(dep.blockerId)}
-                        className="text-pv-gray/60 hover:text-pv-red text-[13px] leading-none transition-colors"
+                        disabled={depSubmitting}
+                        aria-label={`Quitar bloqueador ${dep.blocker?.name ?? ''}`}
+                        className="text-pv-gray/60 hover:text-pv-red text-[13px] leading-none transition-colors disabled:opacity-50"
                       >
                         ×
                       </button>
@@ -458,9 +483,10 @@ export default function DBTaskModal({
                         <button
                           type="button"
                           onClick={handleAddBlocker}
-                          className="px-2.5 py-1.5 text-[11px] font-semibold text-pv-accent border border-pv-accent/30 rounded-lg hover:bg-pv-accent/10 transition-colors"
+                          disabled={depSubmitting}
+                          className="px-2.5 py-1.5 text-[11px] font-semibold text-pv-accent border border-pv-accent/30 rounded-lg hover:bg-pv-accent/10 transition-colors disabled:opacity-50"
                         >
-                          Agregar
+                          {depSubmitting ? 'Agregando…' : 'Agregar'}
                         </button>
                       )}
                     </div>
@@ -501,7 +527,7 @@ export default function DBTaskModal({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="flex-1 px-3 py-2 text-[11px] font-semibold text-pv-gray border border-white/[0.10] rounded-lg hover:bg-white/[0.05] transition-colors"
             >
               Cancelar

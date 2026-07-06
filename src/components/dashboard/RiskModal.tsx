@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { DBProjectRisk } from '@/lib/db-types'
 import { useToast } from '@/lib/context/ToastContext'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 interface Props {
@@ -40,6 +41,12 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
   const [deleting, setDeleting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open,
+    loading: loading || deleting,
+    trackDirty: true,
+  })
 
   useEffect(() => { setError(null) }, [open])
 
@@ -104,13 +111,13 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={requestClose} />
+      <div {...dialogProps} aria-label={isEditing ? 'Editar riesgo' : 'Nuevo riesgo'} className="relative bg-[#1C3448] border border-white/[0.12] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between flex-shrink-0">
           <h2 className="font-display text-[16px] font-black text-white">
             {isEditing ? 'Editar riesgo' : 'Nuevo riesgo'}
           </h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-pv-gray hover:text-white hover:bg-white/10 transition-colors text-lg">×</button>
+          <button onClick={requestClose} aria-label="Cerrar" className="w-7 h-7 flex items-center justify-center rounded-lg text-pv-gray hover:text-white hover:bg-white/10 transition-colors text-lg">×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
@@ -186,7 +193,7 @@ export default function RiskModal({ open, onClose, projectId, editingRisk, onSav
                 Eliminar
               </button>
             )}
-            <button type="button" onClick={onClose}
+            <button type="button" onClick={requestClose}
               className="px-3 py-1.5 text-[11px] font-semibold text-pv-gray border border-white/[0.1] rounded-lg hover:bg-white/[0.06] transition-colors ml-auto">
               Cancelar
             </button>

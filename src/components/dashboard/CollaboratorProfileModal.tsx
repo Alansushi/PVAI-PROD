@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { DBProjectMember, DBDeliverable } from '@/lib/db-types'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 
 const MEMBER_COLORS = [
   '#2E8FC0',
@@ -46,6 +47,12 @@ export default function CollaboratorProfileModal({
   const [mode, setMode] = useState<Mode>('view')
   const [editForm, setEditForm] = useState({ name: '', role: '', color: MEMBER_COLORS[0] })
   const [saving, setSaving] = useState(false)
+  const { requestClose, dialogProps } = useModalA11y({
+    onClose,
+    enabled: open && !!member,
+    loading: saving,
+    dirty: mode === 'edit',
+  })
 
   useEffect(() => {
     if (member) {
@@ -131,10 +138,12 @@ export default function CollaboratorProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-2 sm:p-4" onClick={requestClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-[420px] shadow-2xl"
+        {...dialogProps}
+        aria-label="Perfil del colaborador"
+        className="relative z-10 bg-[#0C1F35] border border-white/[0.10] rounded-2xl p-6 w-full max-w-[420px] shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -143,7 +152,8 @@ export default function CollaboratorProfileModal({
             {mode === 'edit' ? 'Editar colaborador' : mode === 'confirm-delete' ? 'Eliminar colaborador' : 'Perfil del colaborador'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={requestClose}
+            aria-label="Cerrar"
             className="text-pv-gray hover:text-white text-lg leading-none transition-colors"
           >
             ✕

@@ -1,6 +1,7 @@
 'use client'
 
 import type { DBProjectMember } from '@/lib/db-types'
+import { useModalA11y } from '@/lib/hooks/useModalA11y'
 
 interface Props {
   open: boolean
@@ -17,15 +18,19 @@ export default function MembersListModal({
   onSelectMember,
   onInvite,
 }: Props) {
+  const { requestClose, dialogProps } = useModalA11y({ onClose, enabled: open })
+
   if (!open) return null
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
+        {...dialogProps}
+        aria-label="Equipo del proyecto"
         className="relative bg-[#0C1F35] border border-white/[0.12] rounded-2xl w-full max-w-sm shadow-2xl"
         onClick={e => e.stopPropagation()}
       >

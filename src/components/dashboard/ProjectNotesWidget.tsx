@@ -12,7 +12,7 @@ interface Props {
   projectId: string
 }
 
-type SaveStatus = 'idle' | 'saving' | 'saved'
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 function uid() {
   return Math.random().toString(36).slice(2, 9)
@@ -50,15 +50,16 @@ export default function ProjectNotesWidget({ projectId }: Props) {
   const save = useCallback(async (updatedTabs: NoteTab[]) => {
     setStatus('saving')
     try {
-      await fetch(`/api/projects/${projectId}/notes`, {
+      const res = await fetch(`/api/projects/${projectId}/notes`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: updatedTabs }),
       })
+      if (!res.ok) throw new Error()
       setStatus('saved')
       setTimeout(() => setStatus('idle'), 2000)
     } catch {
-      setStatus('idle')
+      setStatus('error')
     }
   }, [projectId])
 
@@ -145,6 +146,7 @@ export default function ProjectNotesWidget({ projectId }: Props) {
                 onClick={e => { e.stopPropagation(); removeTab(tab.id) }}
                 className="opacity-0 group-hover:opacity-100 ml-0.5 text-pv-gray/60 hover:text-[#D94F4F] transition-all text-[11px] leading-none"
                 title="Eliminar nota"
+                aria-label={`Eliminar nota ${tab.title}`}
               >
                 ×
               </button>
@@ -155,6 +157,7 @@ export default function ProjectNotesWidget({ projectId }: Props) {
           onClick={addTab}
           className="px-2 py-1 text-[12px] text-pv-gray/60 hover:text-white transition-colors flex-shrink-0 leading-none"
           title="Nueva nota"
+          aria-label="Nueva nota"
         >
           +
         </button>
@@ -172,9 +175,20 @@ export default function ProjectNotesWidget({ projectId }: Props) {
       {/* Footer */}
       <div className="flex justify-between items-center px-3 pb-2">
         <span className="text-[9px] text-pv-gray/40">{tabs.length} nota{tabs.length !== 1 ? 's' : ''} · privadas</span>
-        <div className="text-[9px]">
+        <div className="text-[9px] flex items-center gap-1.5">
           {status === 'saving' && <span className="text-pv-gray animate-pulse">Guardando...</span>}
           {status === 'saved'  && <span className="text-[#2A9B6F] font-semibold">Guardado ✓</span>}
+          {status === 'error' && (
+            <>
+              <span className="text-[#D94F4F] font-semibold">Error al guardar</span>
+              <button
+                onClick={() => save(tabs)}
+                className="text-pv-accent hover:text-white font-semibold transition-colors"
+              >
+                Reintentar
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
